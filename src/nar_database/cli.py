@@ -101,6 +101,12 @@ def process(data_dir: Path, db_path: Path):
         click.echo(f"   Unique postal codes: {db_stats['unique_postal_codes']:,}")
         click.echo(f"   Unique cities: {db_stats['unique_cities']:,}")
         
+        # Show timing information
+        end_time = datetime.now()
+        total_duration = end_time - start_time
+        click.echo(f"\\n🕒 Total elapsed time: {total_duration}")
+        click.echo(f"⏰ Finished at: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        
     except Exception as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
@@ -120,6 +126,11 @@ def process(data_dir: Path, db_path: Path):
 @click.option('--force-download', is_flag=True, help='Force re-download of data')
 def init(data_dir: Path, db_path: Path, version: str, local_zip: Path, auto_latest: bool, force_download: bool):
     """Initialize the NAR database (download + process)"""
+    
+    # Record start time
+    start_time = datetime.now()
+    click.echo(f"⏰ Started at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    
     if version and auto_latest:
         click.echo("❌ Error: Cannot specify both --version and --auto-latest", err=True)
         raise click.Abort()
@@ -307,7 +318,11 @@ def stats(db_path: Path):
               help='Number of parallel workers (default: auto)')
 def init_fast(local_zip: Path, sample_size: int, max_workers: int):
     """Initialize NAR database with optimized high-performance processing"""
-    click.echo("🚀 Initializing NAR Database (FAST MODE)...")
+    
+    # Record start time
+    start_time = datetime.now()
+    click.echo(f"🚀 Initializing NAR Database (FAST MODE)...")
+    click.echo(f"⏰ Started at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     
     if sample_size:
         click.echo(f"🧪 Sample mode: Processing {sample_size:,} records per file")
@@ -323,7 +338,8 @@ def init_fast(local_zip: Path, sample_size: int, max_workers: int):
     
     try:
         # Step 1: Download/Extract
-        click.echo("\\n1. Downloading data...")
+        step1_start = datetime.now()
+        click.echo(f"\\n1. Downloading data... ({step1_start.strftime('%H:%M:%S')})")
         downloader = NARDownloader()
         
         if local_zip:
@@ -333,11 +349,15 @@ def init_fast(local_zip: Path, sample_size: int, max_workers: int):
         else:
             csv_files = downloader.download_and_extract()
             version = downloader.version
-        click.echo(f"✅ Downloaded {len(csv_files)} CSV files")
+        
+        step1_end = datetime.now()
+        step1_duration = step1_end - step1_start
+        click.echo(f"✅ Downloaded {len(csv_files)} CSV files (took {step1_duration})")
         click.echo(f"📦 Version: {version}")
         
         # Step 2: Process with optimizations
-        click.echo("\\n2. Processing data (OPTIMIZED)...")
+        step2_start = datetime.now()
+        click.echo(f"\\n2. Processing data (OPTIMIZED)... ({step2_start.strftime('%H:%M:%S')})")
         processor = NARProcessorOptimized()
         database = NARDatabase()
         
@@ -347,8 +367,8 @@ def init_fast(local_zip: Path, sample_size: int, max_workers: int):
         total_processed = 0
         chunk_count = 0
         
-        # Process with optimized settings
-        chunk_size = 50000  # Larger chunks
+        # Process with I/O-optimized settings (your system handles large batches well)
+        chunk_size = 75000  # Optimal for your I/O performance
         
         for chunk in processor.process_csv_parallel(
             csv_files, 
@@ -357,13 +377,23 @@ def init_fast(local_zip: Path, sample_size: int, max_workers: int):
             sample_size=sample_size
         ):
             chunk_count += 1
-            database.insert_addresses_batch(chunk, batch_size=50000)
+            batch_start = datetime.now()
+            database.insert_addresses_batch(chunk, batch_size=75000)
+            batch_end = datetime.now()
+            batch_duration = batch_end - batch_start
             total_processed += len(chunk)
-            click.echo(f"📊 Batch {chunk_count}: Inserted {len(chunk):,} records (Total: {total_processed:,})")
+            click.echo(f"📊 Batch {chunk_count}: Inserted {len(chunk):,} records in {batch_duration} (Total: {total_processed:,})")
         
-        click.echo("\\n✅ Database initialized successfully!")
+        step2_end = datetime.now()
+        step2_duration = step2_end - step2_start
+        total_duration = step2_end - start_time
+        
+        click.echo(f"\\n✅ Database initialized successfully!")
         click.echo(f"📈 Total records processed: {total_processed:,}")
         click.echo(f"💾 Database location: data/database/nar.db")
+        click.echo(f"⏱️  Processing time: {step2_duration}")
+        click.echo(f"🕒 Total elapsed time: {total_duration}")
+        click.echo(f"⏰ Finished at: {step2_end.strftime('%Y-%m-%d %H:%M:%S')}")
         click.echo(f"🎯 Use 'python -m nar_database.cli query' commands to search the data")
         
     except Exception as e:

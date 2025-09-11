@@ -136,7 +136,7 @@ class NARProcessorOptimized:
         return ''
     
     def process_csv_parallel(self, csv_files: List[Path], max_workers: Optional[int] = None, 
-                           chunk_size: int = 50000, sample_size: int = None) -> Iterator[List[Dict[str, Any]]]:
+                           chunk_size: int = 75000, sample_size: int = None) -> Iterator[List[Dict[str, Any]]]:
         """
         Process multiple CSV files in parallel using multiple CPU cores
         
@@ -170,7 +170,7 @@ class NARProcessorOptimized:
             except Exception as e:
                 print(f"❌ Error processing {csv_file.name}: {e}")
     
-    def _process_single_file_optimized(self, csv_path: Path, chunk_size: int = 50000, 
+    def _process_single_file_optimized(self, csv_path: Path, chunk_size: int = 75000, 
                                      sample_size: int = None) -> List[List[Dict[str, Any]]]:
         """
         Optimized processing of a single CSV file - preserve all original fields

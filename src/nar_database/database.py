@@ -133,7 +133,7 @@ class NARDatabase:
         
         print(f"Database schema created: {self.db_path}")
     
-    def insert_addresses_batch(self, addresses: List[Dict[str, Any]], batch_size: int = 50000):
+    def insert_addresses_batch(self, addresses: List[Dict[str, Any]], batch_size: int = 75000):
         """
         Insert addresses in batches for efficient processing
         
