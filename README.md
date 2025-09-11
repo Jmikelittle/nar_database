@@ -6,10 +6,15 @@ A Python package to download and process Statistics Canada's National Address Re
 
 The National Address Register is Canada's authoritative source of civic addresses. This package provides tools to:
 
-- Download the latest NAR dataset (1GB+ ZIP file with 27 CSV files)
-- Process and clean the address data
-- Create and populate a local SQLite database
-- Query addresses by postal code, city/province, or coordinates
+- Download the latest NAR dataset (1GB+ ZIP file with 49 CSV files)
+- Process and clean the address data (Address files contain unit-level data)
+- Create and populate a local SQLite database with optimized performance
+- Query addresses by postal code, city/province, or street name
+
+## Documentation
+
+- **[Data Dictionary](docs/data_dictionary.md)** - Complete field definitions and mappings
+- **[Usage Guide](docs/usage.md)** - Detailed usage examples and API reference
 
 ## Installation
 

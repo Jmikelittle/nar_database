@@ -23,18 +23,20 @@ class NARDownloader:
     # Homepage URL for checking available versions
     NAR_HOMEPAGE_URL = "https://www150.statcan.gc.ca/n1/pub/46-26-0002/462600022022001-eng.htm"
     
-    def __init__(self, data_dir: Optional[Path] = None, version: Optional[str] = None):
+    def __init__(self, data_dir: Optional[Path] = None, version: Optional[str] = None, local_zip_path: Optional[Path] = None):
         """
         Initialize the downloader
         
         Args:
             data_dir: Directory to store downloaded data. Defaults to ./data/
             version: Specific version to download (e.g., "202507"). If None, uses latest known.
+            local_zip_path: Path to existing ZIP file to use instead of downloading
         """
         self.data_dir = data_dir or Path("data")
         self.raw_dir = self.data_dir / "raw"
         self.processed_dir = self.data_dir / "processed"
         self.version = version or self.DEFAULT_VERSION
+        self.local_zip_path = Path(local_zip_path) if local_zip_path else None
         
         # Create directories if they don't exist
         self.raw_dir.mkdir(parents=True, exist_ok=True)
@@ -82,6 +84,48 @@ class NARDownloader:
             print(f"Error detecting latest version: {e}")
             print(f"Using default version: {self.DEFAULT_VERSION}")
             return self.DEFAULT_VERSION
+    def use_local_zip(self, local_zip_path: Optional[Path] = None) -> Path:
+        """
+        Copy a local ZIP file to the data directory for processing
+        
+        Args:
+            local_zip_path: Path to the local ZIP file. If None, uses instance local_zip_path.
+            
+        Returns:
+            Path to the copied ZIP file in the data directory
+        """
+        source_zip = Path(local_zip_path) if local_zip_path else self.local_zip_path
+        
+        if not source_zip or not source_zip.exists():
+            raise FileNotFoundError(f"Local ZIP file not found: {source_zip}")
+        
+        print(f"Using local ZIP file: {source_zip}")
+        
+        # Determine version from filename if possible
+        filename_version = None
+        if source_zip.name.startswith('202') and len(source_zip.name) >= 6:
+            # Try to extract version from filename like "202507.zip"
+            potential_version = source_zip.stem
+            if potential_version.isdigit() and len(potential_version) == 6:
+                filename_version = potential_version
+                print(f"Detected version from filename: {filename_version}")
+        
+        # Use detected version or current version
+        version_to_use = filename_version or self.version
+        target_filename = f"nar_dataset_{version_to_use}.zip"
+        target_path = self.raw_dir / target_filename
+        
+        # Copy the file if it doesn't already exist or is different
+        import shutil
+        if not target_path.exists() or target_path.stat().st_size != source_zip.stat().st_size:
+            print(f"Copying to data directory: {target_path}")
+            shutil.copy2(source_zip, target_path)
+            self.version = version_to_use  # Update version to match what we're using
+        else:
+            print(f"File already exists in data directory: {target_path}")
+        
+        return target_path
+
     def download(self, force_download: bool = False, auto_detect_latest: bool = False) -> Path:
         """
         Download the NAR dataset ZIP file
@@ -93,6 +137,10 @@ class NARDownloader:
         Returns:
             Path to the downloaded ZIP file
         """
+        # If we have a local ZIP file, use that instead of downloading
+        if self.local_zip_path and not force_download:
+            return self.use_local_zip()
+        
         # Determine version to download
         if auto_detect_latest:
             version_to_download = self.find_latest_version()

@@ -26,16 +26,22 @@ def main():
               help='Directory to store data (default: ./data)')
 @click.option('--version', type=str, 
               help='Specific version to download (e.g., "202507")')
+@click.option('--local-zip', type=click.Path(exists=True, path_type=Path),
+              help='Path to local ZIP file to use instead of downloading')
 @click.option('--auto-latest', is_flag=True, 
               help='Automatically detect and download the latest version')
 @click.option('--force', is_flag=True, help='Force re-download even if file exists')
-def download(data_dir: Path, version: str, auto_latest: bool, force: bool):
+def download(data_dir: Path, version: str, local_zip: Path, auto_latest: bool, force: bool):
     """Download the NAR dataset"""
     if version and auto_latest:
         click.echo("❌ Error: Cannot specify both --version and --auto-latest", err=True)
         raise click.Abort()
     
-    downloader = NARDownloader(data_dir, version)
+    if local_zip and (version or auto_latest):
+        click.echo("❌ Error: Cannot specify --local-zip with --version or --auto-latest", err=True)
+        raise click.Abort()
+    
+    downloader = NARDownloader(data_dir, version, local_zip)
     
     try:
         csv_files = downloader.download_and_extract(
@@ -107,20 +113,26 @@ def process(data_dir: Path, db_path: Path):
               help='Path to database file (default: ./data/database/nar.db)')
 @click.option('--version', type=str, 
               help='Specific version to download (e.g., "202507")')
+@click.option('--local-zip', type=click.Path(exists=True, path_type=Path),
+              help='Path to local ZIP file to use instead of downloading')
 @click.option('--auto-latest', is_flag=True, 
               help='Automatically detect and download the latest version')
 @click.option('--force-download', is_flag=True, help='Force re-download of data')
-def init(data_dir: Path, db_path: Path, version: str, auto_latest: bool, force_download: bool):
+def init(data_dir: Path, db_path: Path, version: str, local_zip: Path, auto_latest: bool, force_download: bool):
     """Initialize the NAR database (download + process)"""
     if version and auto_latest:
         click.echo("❌ Error: Cannot specify both --version and --auto-latest", err=True)
+        raise click.Abort()
+    
+    if local_zip and (version or auto_latest):
+        click.echo("❌ Error: Cannot specify --local-zip with --version or --auto-latest", err=True)
         raise click.Abort()
     
     click.echo("🚀 Initializing NAR Database...")
     
     # Download data
     click.echo("\\n1. Downloading data...")
-    downloader = NARDownloader(data_dir, version)
+    downloader = NARDownloader(data_dir, version, local_zip)
     csv_files = downloader.download_and_extract(
         force_download=force_download,
         auto_detect_latest=auto_latest
@@ -154,6 +166,58 @@ def init(data_dir: Path, db_path: Path, version: str, auto_latest: bool, force_d
     click.echo(f"   Database: {database.db_path}")
     click.echo(f"   Version: {downloader.version}")
     click.echo(f"   Total records: {total_records:,}")
+
+
+@main.command()
+@click.option('--local-zip', type=click.Path(exists=True, path_type=Path),
+              help='Path to local ZIP file to test with')
+def test_local(local_zip: Path):
+    """Test processing with a local ZIP file (quick validation)"""
+    if not local_zip:
+        click.echo("❌ Error: Must provide --local-zip path", err=True)
+        raise click.Abort()
+    
+    click.echo(f"🧪 Testing with local ZIP file: {local_zip}")
+    
+    try:
+        # Set up test data directory  
+        test_data_dir = Path("test_data")
+        downloader = NARDownloader(test_data_dir, local_zip_path=local_zip)
+        
+        # Extract and analyze
+        click.echo("1. Extracting ZIP file...")
+        zip_path = downloader.use_local_zip()
+        extract_dir = downloader.extract(zip_path)
+        csv_files = downloader.list_csv_files(extract_dir)
+        
+        click.echo(f"✅ Found {len(csv_files)} CSV files")
+        
+        # Analyze first few CSV files
+        click.echo("\\n2. Analyzing CSV structure...")
+        processor = NARProcessor(test_data_dir)
+        
+        for i, csv_file in enumerate(csv_files[:3]):  # Test first 3 files only
+            click.echo(f"\\nAnalyzing {csv_file.name}:")
+            analysis = processor.analyze_csv_structure(csv_file)
+            
+            if 'error' in analysis:
+                click.echo(f"   ❌ Error: {analysis['error']}")
+            else:
+                click.echo(f"   📊 Columns: {analysis['num_columns']}")
+                click.echo(f"   📋 Sample rows: {analysis['sample_rows']}")
+                click.echo(f"   📈 Estimated total: {analysis['estimated_total_rows']}")
+                click.echo("   🏷️  Column names:")
+                for col in analysis['columns'][:10]:  # Show first 10 columns
+                    click.echo(f"      - {col}")
+                if len(analysis['columns']) > 10:
+                    click.echo(f"      ... and {len(analysis['columns']) - 10} more")
+        
+        click.echo("\\n✅ Local ZIP test completed successfully!")
+        click.echo("💡 Use 'nar-db init --local-zip <path>' to process the full dataset")
+        
+    except Exception as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        raise click.Abort()
 
 
 @main.command()
@@ -232,6 +296,80 @@ def stats(db_path: Path):
     except Exception as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
+
+
+@main.command()
+@click.option('--local-zip', type=click.Path(exists=True, path_type=Path), 
+              help='Use a local ZIP file instead of downloading')
+@click.option('--sample-size', type=int, 
+              help='Process only N records per file (for testing)')
+@click.option('--max-workers', type=int, 
+              help='Number of parallel workers (default: auto)')
+def init_fast(local_zip: Path, sample_size: int, max_workers: int):
+    """Initialize NAR database with optimized high-performance processing"""
+    click.echo("🚀 Initializing NAR Database (FAST MODE)...")
+    
+    if sample_size:
+        click.echo(f"🧪 Sample mode: Processing {sample_size:,} records per file")
+    
+    # Import optimized processor
+    try:
+        from .processor_optimized import NARProcessorOptimized
+        from .database import NARDatabase
+        from .downloader import NARDownloader
+    except ImportError as e:
+        click.echo(f"❌ Error importing modules: {e}")
+        return
+    
+    try:
+        # Step 1: Download/Extract
+        click.echo("\\n1. Downloading data...")
+        downloader = NARDownloader()
+        
+        if local_zip:
+            version = downloader.use_local_zip(local_zip)
+            extract_dir = downloader.extract()
+            csv_files = downloader.list_csv_files(extract_dir)
+        else:
+            csv_files = downloader.download_and_extract()
+            version = downloader.version
+        click.echo(f"✅ Downloaded {len(csv_files)} CSV files")
+        click.echo(f"📦 Version: {version}")
+        
+        # Step 2: Process with optimizations
+        click.echo("\\n2. Processing data (OPTIMIZED)...")
+        processor = NARProcessorOptimized()
+        database = NARDatabase()
+        
+        # Create database schema
+        database.create_schema()
+        
+        total_processed = 0
+        chunk_count = 0
+        
+        # Process with optimized settings
+        chunk_size = 50000  # Larger chunks
+        
+        for chunk in processor.process_csv_parallel(
+            csv_files, 
+            max_workers=max_workers,
+            chunk_size=chunk_size, 
+            sample_size=sample_size
+        ):
+            chunk_count += 1
+            database.insert_addresses_batch(chunk, batch_size=50000)
+            total_processed += len(chunk)
+            click.echo(f"📊 Batch {chunk_count}: Inserted {len(chunk):,} records (Total: {total_processed:,})")
+        
+        click.echo("\\n✅ Database initialized successfully!")
+        click.echo(f"📈 Total records processed: {total_processed:,}")
+        click.echo(f"💾 Database location: data/database/nar.db")
+        click.echo(f"🎯 Use 'python -m nar_database.cli query' commands to search the data")
+        
+    except Exception as e:
+        click.echo(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 if __name__ == '__main__':
