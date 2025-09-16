@@ -23,8 +23,8 @@ This data dictionary describes the fields available in the National Address Regi
 | `CIVIC_NO` | `street_number` | Civic number | `123` |
 | `CIVIC_NO_SUFFIX` | `street_number_suffix` | Civic number suffix | `A`, `1/2` |
 | `OFFICIAL_STREET_NAME` | `street_name` | Official street name | `Main`, `King` |
-| `OFFICIAL_STREET_TYPE` | `street_type` | Official street designator | `ST`, `AVE`, `DR` |
-| `OFFICIAL_STREET_DIR` | `street_direction` | Official street direction | `N`, `SE`, `NW` |
+| `OFFICIAL_STREET_TYPE` | `street_type` | Official street designator | `ST`, `AVE`, `DR` (see Street Types Reference) |
+| `OFFICIAL_STREET_DIR` | `street_direction` | Official street direction | `N`, `SE`, `NW` (see Street Directions Reference) |
 
 ### Geographic Information
 | Field | Mapped To | Description | Example |
@@ -96,6 +96,128 @@ This data dictionary describes the fields available in the National Address Regi
 | `60` | Yukon |
 | `61` | Northwest Territories |
 | `62` | Nunavut |
+
+## Street Types Reference
+The following street types (`OFFICIAL_STREET_TYPE`) are found in the NAR database, ordered by frequency:
+
+### Most Common (>100,000 occurrences)
+| Code | Full Name | Usage Count |
+|------|-----------|-------------|
+| `ST` | Street | 3,133,831 |
+| `RUE` | Rue | 2,702,024 |
+| `AVE` | Avenue | 2,371,467 |
+| `RD` | Road | 2,085,892 |
+| `DR` | Drive | 1,558,472 |
+| `CRES` | Crescent | 868,629 |
+| `AV` | Avenue | 651,179 |
+| `CH` | Chemin | 383,852 |
+| `BOUL` | Boulevard | 373,846 |
+| `CRT` | Court | 329,505 |
+| `PL` | Place | 298,550 |
+| `BLVD` | Boulevard | 289,465 |
+| `WAY` | Way | 238,069 |
+| `LANE` | Lane | 229,001 |
+| `HWY` | Highway | 162,705 |
+| `ROUTE` | Route | 111,422 |
+| `RANG` | Rang | 103,687 |
+
+### Common (10,000-100,000 occurrences)
+| Code | Full Name | Usage Count |
+|------|-----------|-------------|
+| `CIR` | Circle | 90,087 |
+| `TRAIL` | Trail | 67,150 |
+| `LINE` | Line | 66,435 |
+| `CLOSE` | Close | 61,546 |
+| `PLACE` | Place | 56,309 |
+| `TERR` | Terrace | 51,704 |
+| `BAY` | Bay | 46,215 |
+| `SQ` | Square | 25,871 |
+| `PKY` | Parkway | 24,639 |
+| `MONTÉE` | Montée | 23,776 |
+| `GATE` | Gate | 23,736 |
+| `PVT` | Private | 21,599 |
+| `GDNS` | Gardens | 19,016 |
+| `HTS` | Heights | 17,770 |
+| `PK` | Park | 17,616 |
+| `GREEN` | Green | 16,409 |
+| `CROIS` | Croisée | 15,509 |
+| `SIDERD` | Side Road | 15,349 |
+| `MEWS` | Mews | 14,232 |
+| `GROVE` | Grove | 13,350 |
+| `COMMON` | Common | 12,968 |
+| `MANOR` | Manor | 12,754 |
+| `PT` | Point | 11,648 |
+| `COVE` | Cove | 11,327 |
+| `RISE` | Rise | 10,061 |
+| `VIEW` | View | 10,015 |
+
+### Less Common (1,000-10,000 occurrences)
+| Code | Full Name | Usage Count |
+|------|-----------|-------------|
+| `TSSE` | Traverse | 9,825 |
+| `LANDNG` | Landing | 9,477 |
+| `HILL` | Hill | 9,270 |
+| `LINK` | Link | 8,094 |
+| `RTE` | Route | 7,990 |
+| `CÔTE` | Côte | 7,649 |
+| `CAR` | Carré | 7,056 |
+| `RIDGE` | Ridge | 6,907 |
+| `WALK` | Walk | 6,581 |
+| `LOOP` | Loop | 6,242 |
+| `QUAY` | Quay | 6,111 |
+| `PATH` | Path | 5,872 |
+| `IMP` | Impasse | 5,734 |
+| `ROW` | Row | 5,697 |
+| `ALLÉE` | Allée | 5,316 |
+| `WYND` | Wynd | 5,240 |
+| `PROM` | Promenade | 5,070 |
+| `BEND` | Bend | 4,286 |
+| `RUN` | Run | 4,272 |
+| `VILLAS` | Villas | 3,677 |
+| `FRRTE` | Forest Route | 3,183 |
+| `CRSSNG` | Crossing | 2,917 |
+| `ESTATE` | Estate | 2,672 |
+| `HEATH` | Heath | 2,299 |
+| `VILLGE` | Village | 2,279 |
+| `TLINE` | Township Line | 2,274 |
+| `CONC` | Concession | 2,238 |
+| `EXTEN` | Extension | 2,031 |
+| `CIRCT` | Circuit | 1,956 |
+| `PARADE` | Parade | 1,796 |
+| `ISLAND` | Island | 1,766 |
+| `MALL` | Mall | 1,416 |
+| `GLEN` | Glen | 1,278 |
+| `CHASE` | Chase | 1,268 |
+| `PTWAY` | Pathway | 1,229 |
+| `PSSGE` | Passage | 1,221 |
+| `RLE` | Ruelle | 1,212 |
+| `VISTA` | Vista | 1,134 |
+| `LANEWY` | Laneway | 1,028 |
+| `DRVWAY` | Driveway | 1,026 |
+
+### Rare (<1,000 occurrences)
+Other street types include: `HOLLOW`, `SENT`, `PLAZA`, `PRMNDE`, `MOUNT`, `MEADOW`, `SUBDIV`, `WHARF`, `ACRES`, `PASS`, `WOODS`, `WOOD`, `CERCLE`, `BYPASS`, `CAPE`, `COUR`, `ALLEY`, `GRNWAY`, `CROSS`, `CREST`, `CTR`, `END`, `COURS`, `DIVERS`, `KEY`, `POINTE`, `LKOUT`, `TURN`, `DESSTE`, `HGHLDS`, `DOWNS`, `BEACH`, `AUT`, `HARBR`, `FSR`, `CRNRS`, `CNNCTR`, `WLKWAY`, `REACH`, `STROLL`, `ESPL`, `ÎLE`, `CRSSRD`, `RDWAY`, `GLADE`, `QUAI`, `DELL`, `GARDEN`, `PASSGE`, `BLUFF`, `VALE`, `MAZE`, `FOREST`, `TRNABT`, `GTEWAY`, `ACCESS`, `KEEP`, `KNOLL`, `HAVEN`, `CDS`, `DRUNG`, `FIELD`, `PLAT`, `DALE`, `BAIE`, `TRACE`, `CROFT`, `STRIP`, `PEAK`, `FRONT`, `VOIE`, `INLET`, `TRNRND`, `PORT`, `TRNPKE`, `ORCH`, `TRTCRR`, `BROOK`, `BRGE`, `FWY`, `LAWN`, `ABBEY`, `RG`, `EXIT`, `LMTS`, `GRNDS`, `CORNER`, `RTOFWY`, `BYWAY`, `MTN`, `EXPY`.
+
+**Note**: Street types reflect both English and French naming conventions used across Canada's bilingual addressing system.
+
+## Street Directions Reference
+The following street directions (`OFFICIAL_STREET_DIR`) are found in the NAR database, ordered by frequency:
+
+| Code | Full Name | Usage Count |
+|------|-----------|-------------|
+| `NW` | Northwest | 583,376 |
+| `E` | East | 513,971 |
+| `W` | West | 408,579 |
+| `SW` | Southwest | 265,974 |
+| `N` | North | 206,017 |
+| `S` | South | 186,455 |
+| `SE` | Southeast | 184,288 |
+| `NE` | Northeast | 125,679 |
+| `O` | Ouest (French for West) | 124,749 |
+| `SO` | Sud-Ouest (French for Southwest) | 253 |
+| `NO` | Nord-Ouest (French for Northwest) | 34 |
+
+**Note**: Street directions include both English and French designations reflecting Canada's bilingual addressing system. The French directions (`O`, `SO`, `NO`) are primarily used in Quebec and other French-speaking regions.
 
 ## Coordinate Systems
 - **EPSG:4326**: WGS84 geographic coordinate system (latitude/longitude)
