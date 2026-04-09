@@ -353,8 +353,9 @@ document.getElementById("btn-province").addEventListener("click", async () => {
     const rows = await runPrepared(
       `SELECT * FROM parquet_scan('${PARQUET_GLOB}')
        WHERE province = $1
-       LIMIT ${limit}`,
-      province
+       LIMIT $2`,
+      province,
+      limit
     );
     renderResults(rows);
   } catch (err) {

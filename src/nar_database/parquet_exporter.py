@@ -154,7 +154,7 @@ class NARParquetExporter:
         # Cleanup
         if not keep_csv:
             _log("🗑️  Removing temporary CSV files…")
-            self._delete_csv_files(csv_files)
+            self._delete_csv_files(csv_files, _log)
             if zip_path and zip_path.exists():
                 _log(f"🗑️  Removing ZIP archive {zip_path.name}…")
                 zip_path.unlink()
@@ -181,19 +181,16 @@ class NARParquetExporter:
             "low_memory": False,
         }
         col_map = None
-        try:
-            for chunk_df in pd.read_csv(csv_path, **read_kwargs):
-                if col_map is None:
-                    col_map = self.processor.standardize_column_names(
-                        list(chunk_df.columns)
-                    )
-                chunk_df = chunk_df.rename(columns=col_map)
-                chunk_df = self.processor._clean_chunk_vectorized(
-                    chunk_df, csv_path.name
+        for chunk_df in pd.read_csv(csv_path, **read_kwargs):
+            if col_map is None:
+                col_map = self.processor.standardize_column_names(
+                    list(chunk_df.columns)
                 )
-                yield chunk_df
-        except Exception as exc:
-            print(f"❌ Error reading {csv_path.name}: {exc}")
+            chunk_df = chunk_df.rename(columns=col_map)
+            chunk_df = self.processor._clean_chunk_vectorized(
+                chunk_df, csv_path.name
+            )
+            yield chunk_df
 
     def _province_column(self, df: pd.DataFrame) -> str:
         """Return the name of the province column present in *df*."""
@@ -243,8 +240,9 @@ class NARParquetExporter:
         metadata_path.write_text(json.dumps(metadata, indent=2))
         return metadata_path
 
-    def _delete_csv_files(self, csv_files: List[Path]) -> None:
+    def _delete_csv_files(self, csv_files: List[Path], log=None) -> None:
         """Delete CSV files and their parent directories when empty."""
+        _log = log or (lambda msg: None)
         deleted = 0
         for csv_path in csv_files:
             try:
@@ -256,7 +254,7 @@ class NARParquetExporter:
                 if parent.exists() and not any(parent.iterdir()):
                     shutil.rmtree(parent, ignore_errors=True)
             except OSError as exc:
-                print(f"  Warning: could not delete {csv_path}: {exc}")
+                _log(f"  Warning: could not delete {csv_path}: {exc}")
 
         # Also try to remove the extracted/ directory if now empty
         extracted_dir = self.data_dir / "raw" / "extracted"
@@ -266,4 +264,4 @@ class NARParquetExporter:
             except OSError:
                 pass
 
-        print(f"  Deleted {deleted} CSV file(s)")
+        _log(f"  Deleted {deleted} CSV file(s)")
