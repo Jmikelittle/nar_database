@@ -373,16 +373,46 @@ async function initDuckDB() {
   setBanner("⏳ Initialising DuckDB-wasm…", "info");
 
   try {
-    // duckdb is exposed globally by the blocking bundle script
-    const bundle = await duckdb.selectBundle(DUCKDB_BUNDLES);
+    // Wait for duckdb to be available from the blocking script
+    let duckdbModule = null;
+    let attempts = 0;
+    while (!window.duckdb && attempts < 30) {
+      await new Promise(r => setTimeout(r, 100));
+      attempts++;
+    }
+    
+    if (!window.duckdb) {
+      throw new Error("DuckDB-wasm failed to load from CDN. Check browser console and network tab.");
+    }
 
+    duckdbModule = window.duckdb;
+    
+    // Try modern API first (selectBundle)
+    let bundle;
+    if (duckdbModule.selectBundle && typeof duckdbModule.selectBundle === 'function') {
+      bundle = await duckdbModule.selectBundle(DUCKDB_BUNDLES);
+    } else if (duckdbModule.getJsDelivrBundleUrl) {
+      // Alternative API for newer versions
+      const mvpUrl = await duckdbModule.getJsDelivrBundleUrl();
+      bundle = {
+        mainModule: mvpUrl + '/duckdb-mvp.wasm',
+        mainWorker: mvpUrl + '/duckdb-browser-mvp.worker.js',
+      };
+    } else {
+      // Fallback: use CDN URLs directly
+      bundle = {
+        mainModule: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-mvp.wasm',
+        mainWorker: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-browser-mvp.worker.js',
+      };
+    }
+    
     const worker_url = URL.createObjectURL(
       new Blob([`importScripts("${bundle.mainWorker}");`], { type: "text/javascript" })
     );
     const worker = new Worker(worker_url);
-    const logger = new duckdb.ConsoleLogger();
+    const logger = new duckdbModule.ConsoleLogger();
 
-    db   = new duckdb.AsyncDuckDB(logger, worker);
+    db   = new duckdbModule.AsyncDuckDB(logger, worker);
     await db.instantiate(bundle.mainModule);
     URL.revokeObjectURL(worker_url);
 
@@ -394,11 +424,20 @@ async function initDuckDB() {
   } catch (err) {
     setBanner(
       `❌ Failed to load DuckDB-wasm: ${err.message}. ` +
-      "Ensure the Parquet files have been uploaded to docs/data/parquet/.",
+      "This may be a CDN connectivity issue or incompatible browser.",
       "error"
     );
-    console.error(err);
+    console.error("DuckDB initialization error:", err);
+    console.error("Window.duckdb available:", !!window.duckdb);
+    if (window.duckdb) {
+      console.error("Available methods:", Object.keys(window.duckdb).slice(0, 20));
+    }
   }
 }
 
-initDuckDB();
+// Initialize DuckDB when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initDuckDB);
+} else {
+  initDuckDB();
+}
