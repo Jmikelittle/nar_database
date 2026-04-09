@@ -14,6 +14,9 @@
 // DuckDB-wasm bootstrap
 // ---------------------------------------------------------------------------
 
+// Import DuckDB-wasm ES modules directly
+import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm';
+
 const DUCKDB_BUNDLES = {
   mvp: {
     mainModule:   "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/dist/duckdb-mvp.wasm",
@@ -373,69 +376,38 @@ async function initDuckDB() {
   setBanner("⏳ Initialising DuckDB-wasm…", "info");
 
   try {
-    // Wait for duckdb to be available from the blocking script
-    let duckdbModule = null;
-    let attempts = 0;
-    while (!window.duckdb && attempts < 30) {
-      await new Promise(r => setTimeout(r, 100));
-      attempts++;
-    }
+    // DuckDB is now imported as ES module above
+    console.log("DuckDB module loaded. Available exports:", Object.keys(duckdb).slice(0, 15));
     
-    if (!window.duckdb) {
-      throw new Error("DuckDB-wasm failed to load from CDN. Check browser console and network tab.");
-    }
-
-    duckdbModule = window.duckdb;
+    // Select appropriate bundle based on browser capabilities
+    const bundle = await duckdb.selectBundle(DUCKDB_BUNDLES);
+    console.log("Selected bundle:", bundle.mainModule.split('/').pop());
     
-    // Modern duckdb-wasm API (v1.18+) uses a different initialization
-    // First, try the newer API with initializeDatabase
-    if (duckdbModule.initializeDatabase && typeof duckdbModule.initializeDatabase === 'function') {
-      try {
-        db = await duckdbModule.initializeDatabase();
-        conn = await db.connect();
-        setBanner("✅ DuckDB ready. Loading dataset statistics…", "success");
-        await loadStatistics();
-        hideBanner();
-        return;
-      } catch (e) {
-        console.log("initializeDatabase failed, trying AsyncDuckDB...", e);
-      }
-    }
-    
-    // Fallback to older API with AsyncDuckDB
-    if (duckdbModule.AsyncDuckDB) {
-      const bundle = await duckdbModule.selectBundle(DUCKDB_BUNDLES);
-      const worker_url = URL.createObjectURL(
-        new Blob([`importScripts("${bundle.mainWorker}");`], { type: "text/javascript" })
-      );
-      const worker = new Worker(worker_url);
-      const logger = new duckdbModule.ConsoleLogger();
-
-      db = new duckdbModule.AsyncDuckDB(logger, worker);
-      await db.instantiate(bundle.mainModule);
-      URL.revokeObjectURL(worker_url);
-
-      conn = await db.connect();
-      setBanner("✅ DuckDB ready. Loading dataset statistics…", "success");
-      await loadStatistics();
-      hideBanner();
-      return;
-    }
-    
-    // If neither API works, log what we have available
-    throw new Error(
-      `DuckDB API not found. Available exports: ${Object.keys(duckdbModule).slice(0, 10).join(', ')}`
+    // Create worker with the worker script
+    const worker_url = URL.createObjectURL(
+      new Blob([`importScripts("${bundle.mainWorker}");`], { type: "text/javascript" })
     );
+    const worker = new Worker(worker_url);
+    const logger = new duckdb.ConsoleLogger();
+
+    // Initialize DuckDB
+    db = new duckdb.AsyncDuckDB(logger, worker);
+    await db.instantiate(bundle.mainModule);
+    URL.revokeObjectURL(worker_url);
+
+    conn = await db.connect();
+    setBanner("✅ DuckDB ready. Loading dataset statistics…", "success");
+
+    await loadStatistics();
+    hideBanner();
   } catch (err) {
     setBanner(
       `❌ Failed to load DuckDB-wasm: ${err.message}`,
       "error"
     );
     console.error("DuckDB initialization error:", err);
-    console.error("Window.duckdb available:", !!window.duckdb);
-    if (window.duckdb) {
-      console.error("Available duckdb exports:", Object.keys(window.duckdb).slice(0, 30));
-    }
+    console.error("DuckDB module:", typeof duckdb);
+    console.error("Available exports:", Object.keys(duckdb || {}));
   }
 }
 
