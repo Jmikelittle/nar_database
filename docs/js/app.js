@@ -251,12 +251,15 @@ async function loadCityCount() {
 // ---------------------------------------------------------------------------
 
 /**
- * Run a DuckDB SQL query and return rows as plain objects.
- * @param {string} sql
+ * Run a DuckDB prepared statement with positional parameters and return rows.
+ * @param {string} sql   - SQL with $1, $2, … placeholders for user values.
+ * @param {...*}   params - Values to bind.
  * @returns {Promise<Array<Object>>}
  */
-async function runQuery(sql) {
-  const result = await conn.query(sql);
+async function runPrepared(sql, ...params) {
+  const stmt   = await conn.prepare(sql);
+  const result = await stmt.query(...params);
+  await stmt.close();
   return result.toArray().map((row) => {
     const obj = {};
     for (const key of Object.keys(row)) {
@@ -274,12 +277,13 @@ document.getElementById("btn-postal").addEventListener("click", async () => {
   setLoading(true);
   setBanner("🔍 Searching…", "info");
   try {
-    const rows = await runQuery(`
-      SELECT *
-      FROM parquet_scan('${PARQUET_GLOB}')
-      WHERE UPPER(REPLACE(postal_code, ' ', '')) = '${raw.replace(/'/g, "''")}'
-      LIMIT 500
-    `);
+    const rows = await runPrepared(
+      `SELECT *
+       FROM parquet_scan('${PARQUET_GLOB}')
+       WHERE UPPER(REPLACE(postal_code, ' ', '')) = $1
+       LIMIT 500`,
+      raw
+    );
     renderResults(rows);
   } catch (err) {
     setBanner(`❌ Query error: ${err.message}`, "error");
@@ -303,19 +307,28 @@ document.getElementById("btn-city").addEventListener("click", async () => {
     return;
   }
 
-  const conditions = [];
-  if (city)     conditions.push(`LOWER(city) LIKE LOWER('${city.replace(/'/g, "''")}%')`);
-  if (province) conditions.push(`province = '${province.replace(/'/g, "''")}'`);
-
   setLoading(true);
   setBanner("🔍 Searching…", "info");
   try {
-    const rows = await runQuery(`
-      SELECT *
-      FROM parquet_scan('${PARQUET_GLOB}')
-      WHERE ${conditions.join(" AND ")}
-      LIMIT 500
-    `);
+    let sql;
+    let params;
+    if (city && province) {
+      sql    = `SELECT * FROM parquet_scan('${PARQUET_GLOB}')
+                WHERE LOWER(city) LIKE LOWER($1) AND province = $2
+                LIMIT 500`;
+      params = [`${city}%`, province];
+    } else if (city) {
+      sql    = `SELECT * FROM parquet_scan('${PARQUET_GLOB}')
+                WHERE LOWER(city) LIKE LOWER($1)
+                LIMIT 500`;
+      params = [`${city}%`];
+    } else {
+      sql    = `SELECT * FROM parquet_scan('${PARQUET_GLOB}')
+                WHERE province = $1
+                LIMIT 500`;
+      params = [province];
+    }
+    const rows = await runPrepared(sql, ...params);
     renderResults(rows);
   } catch (err) {
     setBanner(`❌ Query error: ${err.message}`, "error");
@@ -337,12 +350,12 @@ document.getElementById("btn-province").addEventListener("click", async () => {
   setLoading(true);
   setBanner("🔍 Loading…", "info");
   try {
-    const rows = await runQuery(`
-      SELECT *
-      FROM parquet_scan('${PARQUET_GLOB}')
-      WHERE province = '${province.replace(/'/g, "''")}'
-      LIMIT ${limit}
-    `);
+    const rows = await runPrepared(
+      `SELECT * FROM parquet_scan('${PARQUET_GLOB}')
+       WHERE province = $1
+       LIMIT ${limit}`,
+      province
+    );
     renderResults(rows);
   } catch (err) {
     setBanner(`❌ Query error: ${err.message}`, "error");

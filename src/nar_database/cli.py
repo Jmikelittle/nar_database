@@ -436,11 +436,11 @@ def init_fast(local_zip: Path, sample_size: int, max_workers: int):
     help="Keep CSV files and ZIP after Parquet export (default: delete them)",
 )
 def init_parquet(
-    data_url: str,
-    local_zip: Path,
+    data_url: Optional[str],
+    local_zip: Optional[Path],
     auto_latest: bool,
-    data_dir: Path,
-    parquet_dir: Path,
+    data_dir: Optional[Path],
+    parquet_dir: Optional[Path],
     keep_csv: bool,
 ):
     """Download ZIP, convert CSVs to Parquet, and clean up temporary files.

@@ -5,7 +5,7 @@ Converts CSV files to partitioned Parquet format for efficient web queries via D
 
 import json
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator, List, Optional
 
@@ -231,7 +231,7 @@ class NARParquetExporter:
                 )
 
         metadata = {
-            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "total_rows": total_rows,
             "provinces": province_row_counts,
             "schema": schema_fields,
