@@ -63,13 +63,19 @@ venv.bak/
 # macOS
 .DS_Store
 
-# Data directories - IMPORTANT: Exclude all downloaded data
+# Data directories - IMPORTANT: Exclude all downloaded/temporary data
+# Only exclude the root data/ directory (where CSVs, ZIPs, SQLite DBs are created)
 data/
-*.csv
-*.zip
-*.db
-*.sqlite
-*.sqlite3
+# But DO track docs/data/ since it contains website assets for GitHub Pages
+!docs/
+!docs/data/
+!docs/data/**
+# Still exclude csv/zip files even in docs if created
+docs/data/*.csv
+docs/data/*.zip
+docs/data/*.db
+docs/data/*.sqlite
+docs/data/*.sqlite3
 
 # Temporary files
 temp/

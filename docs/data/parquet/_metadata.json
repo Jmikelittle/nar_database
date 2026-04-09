@@ -1,0 +1,136 @@
+{
+  "generated_at": "2026-04-09T18:02:16.821836+00:00",
+  "total_rows": 20449,
+  "provinces": {
+    "NT": 12021,
+    "UNKNOWN": 8428
+  },
+  "schema": [
+    {
+      "name": "location_id",
+      "type": "large_string"
+    },
+    {
+      "name": "address_id",
+      "type": "large_string"
+    },
+    {
+      "name": "unit_number",
+      "type": "large_string"
+    },
+    {
+      "name": "street_number",
+      "type": "large_string"
+    },
+    {
+      "name": "street_number_suffix",
+      "type": "large_string"
+    },
+    {
+      "name": "street_name",
+      "type": "large_string"
+    },
+    {
+      "name": "street_type",
+      "type": "large_string"
+    },
+    {
+      "name": "street_direction",
+      "type": "large_string"
+    },
+    {
+      "name": "province_code",
+      "type": "large_string"
+    },
+    {
+      "name": "city",
+      "type": "large_string"
+    },
+    {
+      "name": "city_french",
+      "type": "large_string"
+    },
+    {
+      "name": "csd_type_eng_code",
+      "type": "large_string"
+    },
+    {
+      "name": "csd_type_fre_code",
+      "type": "large_string"
+    },
+    {
+      "name": "mail_street_name",
+      "type": "large_string"
+    },
+    {
+      "name": "mail_street_type",
+      "type": "large_string"
+    },
+    {
+      "name": "mail_street_direction",
+      "type": "large_string"
+    },
+    {
+      "name": "mail_city",
+      "type": "large_string"
+    },
+    {
+      "name": "mail_province",
+      "type": "large_string"
+    },
+    {
+      "name": "postal_code",
+      "type": "large_string"
+    },
+    {
+      "name": "bg_dls_lsd",
+      "type": "large_string"
+    },
+    {
+      "name": "bg_dls_qtr",
+      "type": "large_string"
+    },
+    {
+      "name": "bg_dls_sctn",
+      "type": "large_string"
+    },
+    {
+      "name": "bg_dls_twnshp",
+      "type": "large_string"
+    },
+    {
+      "name": "bg_dls_rng",
+      "type": "large_string"
+    },
+    {
+      "name": "bg_dls_mrd",
+      "type": "large_string"
+    },
+    {
+      "name": "bg_x",
+      "type": "large_string"
+    },
+    {
+      "name": "bg_y",
+      "type": "large_string"
+    },
+    {
+      "name": "bu_n_civic_add",
+      "type": "large_string"
+    },
+    {
+      "name": "bu_use",
+      "type": "large_string"
+    },
+    {
+      "name": "source_file",
+      "type": "large_string"
+    }
+  ],
+  "compression": "snappy",
+  "partition_column": "province",
+  "parquet_files": [
+    "province=NT/part-0.parquet",
+    "province=UNKNOWN/part-0.parquet"
+  ]
+}
