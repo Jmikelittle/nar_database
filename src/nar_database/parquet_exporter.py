@@ -94,6 +94,15 @@ class NARParquetExporter:
         _log(f"Exporting {len(csv_files)} CSV file(s) to Parquet…")
         _log(f"Output directory: {self.parquet_dir}")
 
+        # First pass: collect all unique columns across all CSVs
+        all_columns: set[str] = set()
+        for csv_path in csv_files:
+            for chunk_df in self._stream_csv(csv_path):
+                if not chunk_df.empty:
+                    all_columns.update(chunk_df.columns)
+        
+        _log(f"  Found {len(all_columns)} unique columns across all files")
+
         # Collect all processed data grouped by province so we can write
         # complete per-province files without keeping everything in RAM.
         province_writers: dict[str, pq.ParquetWriter] = {}
@@ -102,11 +111,19 @@ class NARParquetExporter:
         arrow_schema: Optional[pa.Schema] = None
 
         try:
+            # Second pass: process and write with normalized columns
             for csv_path in csv_files:
                 _log(f"  Processing {csv_path.name}…")
                 for chunk_df in self._stream_csv(csv_path):
                     if chunk_df.empty:
                         continue
+
+                    # Normalize: ensure all columns exist (fill missing with None)
+                    for col in all_columns:
+                        if col not in chunk_df.columns:
+                            chunk_df[col] = None
+                    # Ensure consistent column ordering
+                    chunk_df = chunk_df[sorted(all_columns)]
 
                     # Determine province column
                     province_col = self._province_column(chunk_df)

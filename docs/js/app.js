@@ -145,16 +145,58 @@ async function getParquetFileUrls() {
   });
 }
 
-// For DuckDB queries, create a UNION ALL of all parquet files
+// Get all parquet files grouped by province
+async function getParquetFilesByProvince() {
+  const meta = await loadMetadata();
+  const files = meta.parquet_files || [];
+  
+  const byProvince = {};
+  for (const file of files) {
+    // Extract province from path like "province=NT/part-0.parquet"
+    const match = file.match(/province=([^/]+)/);
+    if (match) {
+      const province = match[1];
+      if (!byProvince[province]) {
+        byProvince[province] = [];
+      }
+      byProvince[province].push(`${PARQUET_BASE_URL}${file}`);
+    }
+  }
+  return byProvince;
+}
+
+// Build a query that reads multiple parquet files
+// Since different files may have different schemas (Address vs Location),
+// we need to build a query that handles schema mismatches
 async function buildParquetScanQuery() {
   const files = await getParquetFileUrls();
+  const meta = await loadMetadata();
+  
   if (files.length === 0) {
     throw new Error("No Parquet files found in metadata");
   }
   
-  // Read each parquet file and union them
-  const selects = files.map(file => `SELECT * FROM read_parquet('${file}')`);
-  return selects.join(' UNION ALL ');
+  // Get all column names from metadata
+  const allColumns = meta.schema.map(field => field.name);
+  
+  // For each file, create a SELECT that includes all columns
+  // Using exception handling to deal with missing columns
+  const selects = files.map(file => {
+    // Build column list with CASE for optional columns
+    const colSelects = allColumns.map(col => {
+      // Use a subquery approach: try to include the column if it exists
+      return `COALESCE((SELECT CAST(${col} AS VARCHAR) FROM read_parquet('${file}') LIMIT 1), '') as ${col}`;
+    }).join(', ');
+    return `SELECT ${colSelects} FROM read_parquet('${file}')`;
+  });
+  
+  // This is complex; simpler approach: just select what exists in each file
+  // and let the results be separate
+  const simplifiedSelects = files.map(file => `SELECT * FROM read_parquet('${file}')`);
+  const query = simplifiedSelects.join(' UNION ALL BY NAME');
+  
+  console.log("📋 Query:", query);
+  return query;
 }
 
 let db   = null;
