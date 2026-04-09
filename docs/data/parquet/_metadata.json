@@ -1,10 +1,12 @@
 {
-  "generated_at": "2026-04-09T18:02:16.821836+00:00",
-  "total_rows": 20449,
+  "generated_at": "2026-04-09T20:21:28.308930+00:00",
+  "total_rows": 12021,
   "provinces": {
-    "NT": 12021,
-    "UNKNOWN": 8428
+    "NT": 12021
   },
+  "parquet_files": [
+    "province=NT/part-0.parquet"
+  ],
   "schema": [
     {
       "name": "location_id",
@@ -128,9 +130,5 @@
     }
   ],
   "compression": "snappy",
-  "partition_column": "province",
-  "parquet_files": [
-    "province=NT/part-0.parquet",
-    "province=UNKNOWN/part-0.parquet"
-  ]
+  "partition_column": "province"
 }

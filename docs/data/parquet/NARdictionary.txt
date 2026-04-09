@@ -1,0 +1,39 @@
+Attributes Description
+LOC_GUID (locationId) Globally unique identifier for location
+ADDR_GUID (addressId) Globally unique identifier for address
+APT_NO_LABEL Apartment or suite number
+CIVIC_NO Civic number
+CIVIC_NO_SUFFIX Civic number suffix
+OFFICIAL_STREET_NAME Official street name
+OFFICIAL_STREET_TYPE Official street designator
+OFFICIAL_STREET_DIR Official street direction
+PROV_CODE Province code
+CSD_CODE Census subdivision code (2025)
+CSD_TYPE_ENG_CODE Census subdivision type code English
+CSD_TYPE_FRE_CODE Census subdivision type code French
+CSD_ENG_NAME Census subdivision English name
+CSD_FRE_NAME Census subdivision French name
+ER_CODE Economic region code (2021)
+ER_ENG_NAME Economic region English name
+ER_FRE_NAME Economic region French name
+FED_CODE Federal electoral district code (2023)
+FED_ENG_NAME Federal electoral district English name
+FED_FRE_NAME Federal electoral district French name
+MAIL_STREET_NAME Mailing street name
+MAIL_STREET_TYPE Mailing street designator
+MAIL_STREET_DIR Mailing street direction
+MAIL_MUN_NAME Mailing municipality name
+MAIL_PROV_ABVN Mailing province abbreviation
+MAIL_POSTAL_CODE Mailing postal code
+BG_DLS_LSD Dominion Land Survey coordinate - Legal Subdivision
+BG_DLS_QTR Dominion Land Survey coordinate - Quarter
+BG_DLS_SCTN Dominion Land Survey coordinate - Section
+BG_DLS_TWNSHP Dominion Land Survey coordinate - Township
+BG_DLS_RNG Dominion Land Survey coordinate - Range
+BG_DLS_MRD Dominion Land Survey coordinate - Meridian
+BG_LATITUDE Latitude coordinate of building (EPSG:4326)
+BG_LONGITUDE Longitude coordinate of building (EPSG:4326)
+BG_X Spatial X coordinate of building (EPSG:3347)
+BG_Y Spatial Y coordinate of building (EPSG:3347)
+BU_USE Building usage codes
+BU_N_CIVIC_ADD Additional delivery information for mailing address
