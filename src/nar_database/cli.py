@@ -427,7 +427,7 @@ def init_fast(local_zip: Path, sample_size: int, max_workers: int):
 @click.option(
     "--parquet-dir",
     type=click.Path(path_type=Path),
-    help="Output directory for Parquet files (default: ./data/parquet)",
+    help="Output directory for Parquet files (default: ./docs/data/parquet)",
 )
 @click.option(
     "--keep-csv",
@@ -447,13 +447,15 @@ def init_parquet(
 
     Workflow:
       1. Download the NAR ZIP from Statistics Canada (or use a local file).
-      2. Extract the CSV files to a temporary directory.
+      2. Extract the CSV files to a temporary directory (./data/).
       3. Stream-convert each CSV to province-partitioned Parquet (snappy).
-      4. Delete the CSV files and ZIP archive (unless --keep-csv).
-      5. Print a summary of the generated Parquet files.
+      4. Write Parquet files directly to docs/data/parquet/.
+      5. Delete the CSV files and ZIP archive (unless --keep-csv).
+      6. Print a summary of the generated Parquet files.
 
-    The resulting Parquet files can be committed to docs/data/parquet/ and
-    queried directly in the browser via the GitHub Pages DuckDB-wasm interface.
+    The Parquet files are generated directly in docs/data/parquet/ and can be
+    committed to GitHub. They are immediately queryable via the GitHub Pages
+    DuckDB-wasm interface without any manual copying.
     """
     try:
         from .parquet_exporter import NARParquetExporter
@@ -475,6 +477,7 @@ def init_parquet(
     click.echo("1️⃣  Downloading / extracting data…")
 
     resolved_data_dir = data_dir or Path("data")
+    resolved_parquet_dir = parquet_dir or Path("docs/data/parquet")
     downloader = NARDownloader(resolved_data_dir, local_zip_path=local_zip)
 
     zip_path: Optional[Path] = None  # track for later cleanup
@@ -505,7 +508,7 @@ def init_parquet(
     try:
         exporter = NARParquetExporter(
             data_dir=resolved_data_dir,
-            parquet_dir=parquet_dir,
+            parquet_dir=resolved_parquet_dir,
         )
         summary = exporter.export_csv_files(
             csv_files,
@@ -532,9 +535,9 @@ def init_parquet(
     click.echo(f"   📄 Metadata file     : {summary['metadata_path']}")
     click.echo(f"   🕒 Duration          : {duration}")
     click.echo(f"\n💡 Next steps:")
-    click.echo(f"   1. Copy {summary['parquet_dir']} to docs/data/parquet/")
-    click.echo(f"   2. git add docs/data/parquet && git commit -m 'Update NAR data'")
-    click.echo(f"   3. git push → data is live on GitHub Pages!")
+    click.echo(f"   1. git add docs/data/parquet && git commit -m 'Update NAR data'")
+    click.echo(f"   2. git push → data is live on GitHub Pages!")
+    click.echo(f"\n💾 Temporary files in ./data/ are safe to delete (they're in .gitignore)")
 
 
 if __name__ == '__main__':

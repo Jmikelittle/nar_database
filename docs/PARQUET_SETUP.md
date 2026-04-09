@@ -48,16 +48,18 @@ The command will:
 2. Download the ZIP (~1 GB) to `data/raw/`.
 3. Extract the CSV files to `data/raw/extracted/`.
 4. Stream-convert each CSV to Parquet with **snappy** compression.
-5. Partition the output by province under `data/parquet/`.
-6. **Delete** the extracted CSVs and the original ZIP automatically.
+5. Write partitioned Parquet files directly to `docs/data/parquet/`.
+6. **Delete** the extracted CSVs and the original ZIP automatically (unless `--keep-csv`).
 
-Only the final Parquet files (~200–300 MB total) are kept.
+Temporary working files in `data/` are ignored by git. Only `docs/data/parquet/` needs to be committed.
 
 ### Option B – Use a local ZIP file
 
 If you have already downloaded the ZIP manually:
 
 ```bash
+nar-db init-parquet --local-zip /path/to/202507.zip
+```
 nar-db init-parquet --local-zip /path/to/202507.zip
 ```
 
@@ -72,29 +74,24 @@ nar-db process   # optional: create SQLite database from the same CSVs
 
 ---
 
-## Step 4 – Copy Parquet files to the docs directory
+## Step 4 – Commit to GitHub
 
-GitHub Pages serves everything under `docs/`.  Copy the generated files there:
+Parquet files are already in `docs/` where GitHub Pages expects them:
 
 ```bash
-cp -r data/parquet docs/data/parquet
+git add docs/data/parquet/
+git commit -m "Update NAR parquet data (version 202507)"
+git push
 ```
 
-Expected final layout:
+**That's it!** The data is live on GitHub Pages immediately.
 
-```
-docs/
-├── index.html
-├── css/style.css
-├── js/app.js
-└── data/
-    └── parquet/
-        ├── _metadata.json
-        ├── province=AB/
-        │   └── part-0.parquet
-        ├── province=BC/
-        │   └── part-0.parquet
-        └── ...
+### Optional: Clean up temporary files
+
+The `data/` directory contains temporary working files (CSVs, ZIPs) and is safely ignored by git:
+
+```bash
+rm -rf data/  # Safe to delete; all files are in .gitignore
 ```
 
 ---
