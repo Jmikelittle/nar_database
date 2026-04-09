@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NAR Address Search</title>
+
+  <!-- Bootstrap 5 -->
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        crossorigin="anonymous" />
+
+  <style>
+    body { padding-top: 1.5rem; }
+
+    #status-banner {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    #results-table-wrapper { overflow-x: auto; }
+
+    table th { white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+<div class="container-lg">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-0">🇨🇦 National Address Register Search</h1>
+      <p class="text-muted mb-0 small">
+        Browser-based search powered by
+        <a href="https://duckdb.org/docs/api/wasm/overview" target="_blank"
+           rel="noopener">DuckDB-wasm</a>.
+        All queries run locally — no data leaves your browser.
+      </p>
+    </div>
+  </div>
+
+  <!-- Status banner -->
+  <div id="status-banner" class="alert alert-info mb-3" role="alert">
+    ⏳ Loading DuckDB-wasm…
+  </div>
+
+  <!-- Data source configuration -->
+  <div class="card mb-3">
+    <div class="card-header fw-semibold">Data Source</div>
+    <div class="card-body">
+      <p class="card-text small text-muted">
+        Enter the base URL where your Parquet files are hosted (e.g. your
+        GitHub Pages URL).  Leave the path as-is for the default single-file
+        layout, or point it to a province partition such as
+        <code>…/parquet_output/province=ON/addresses.parquet</code>.
+      </p>
+      <div class="input-group">
+        <input id="parquet-url" type="url" class="form-control"
+               placeholder="https://your-org.github.io/nar_database/data/parquet_output/nar_addresses.parquet"
+               value="" />
+        <button class="btn btn-outline-secondary" id="btn-load-url">Load</button>
+      </div>
+      <div id="load-error" class="text-danger small mt-1" hidden></div>
+    </div>
+  </div>
+
+  <!-- Search form -->
+  <div class="card mb-3">
+    <div class="card-header fw-semibold">Search</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label for="search-postal" class="form-label">Postal Code</label>
+          <input id="search-postal" type="text" class="form-control"
+                 placeholder="K1A0A6" maxlength="7" />
+        </div>
+        <div class="col-md-4">
+          <label for="search-city" class="form-label">City</label>
+          <input id="search-city" type="text" class="form-control"
+                 placeholder="Ottawa" />
+        </div>
+        <div class="col-md-2">
+          <label for="search-province" class="form-label">Province</label>
+          <input id="search-province" type="text" class="form-control"
+                 placeholder="ON" maxlength="2" />
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button id="btn-search" class="btn btn-primary w-100" disabled>Search</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div id="stats-card" class="card mb-3" hidden>
+    <div class="card-header fw-semibold">Dataset Statistics</div>
+    <div class="card-body" id="stats-body">
+      Loading…
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results-section" hidden>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <span id="results-count" class="fw-semibold"></span>
+      <button id="btn-download-csv" class="btn btn-sm btn-outline-success">
+        ⬇ Download CSV
+      </button>
+    </div>
+    <div id="results-table-wrapper">
+      <table class="table table-sm table-striped table-hover">
+        <thead id="results-thead" class="table-dark"></thead>
+        <tbody id="results-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- DuckDB-wasm (ESM bundle via jsDelivr CDN) -->
+<script type="module">
+  // ── DuckDB-wasm imports ────────────────────────────────────────────────────
+  import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm';
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let db = null;
+  let conn = null;
+  let loadedUrl = null;
+  let lastResults = [];
+
+  // ── DOM helpers ────────────────────────────────────────────────────────────
+  const banner   = document.getElementById('status-banner');
+  const btnSearch = document.getElementById('btn-search');
+  const loadError = document.getElementById('load-error');
+
+  function setStatus(msg, type = 'info') {
+    banner.className = `alert alert-${type} mb-3`;
+    banner.textContent = msg;
+  }
+
+  // ── Initialise DuckDB-wasm ─────────────────────────────────────────────────
+  async function initDuckDB() {
+    setStatus('⏳ Initialising DuckDB-wasm…');
+    try {
+      const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
+      const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
+
+      const worker_url = URL.createObjectURL(
+        new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' })
+      );
+      const worker = new Worker(worker_url);
+      const logger = new duckdb.ConsoleLogger();
+      db = new duckdb.AsyncDuckDB(logger, worker);
+      await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+
+      conn = await db.connect();
+
+      // Enable httpfs extension for remote Parquet queries
+      await conn.query("INSTALL httpfs; LOAD httpfs;");
+
+      setStatus('✅ DuckDB-wasm ready. Enter a Parquet URL above and click Load.', 'success');
+    } catch (err) {
+      setStatus(`❌ Failed to initialise DuckDB: ${err.message}`, 'danger');
+      console.error(err);
+    }
+  }
+
+  // ── Load / register the Parquet file ──────────────────────────────────────
+  async function loadParquetUrl(url) {
+    loadError.hidden = true;
+
+    if (!url || !url.startsWith('http')) {
+      loadError.textContent = 'Please enter a valid https:// URL.';
+      loadError.hidden = false;
+      return;
+    }
+
+    setStatus(`⏳ Registering Parquet file: ${url}…`);
+    try {
+      // Use DuckDB httpfs to query the remote file directly
+      await conn.query(`CREATE OR REPLACE VIEW nar AS SELECT * FROM read_parquet('${url}')`);
+      loadedUrl = url;
+      btnSearch.disabled = false;
+      setStatus(`✅ Parquet loaded. Use the search form below.`, 'success');
+
+      // Show stats
+      await loadStats();
+    } catch (err) {
+      setStatus(`❌ Could not load Parquet file: ${err.message}`, 'danger');
+      console.error(err);
+      loadError.textContent = `Error: ${err.message}`;
+      loadError.hidden = false;
+    }
+  }
+
+  // ── Dataset statistics ─────────────────────────────────────────────────────
+  async function loadStats() {
+    const statsCard = document.getElementById('stats-card');
+    const statsBody = document.getElementById('stats-body');
+    statsCard.hidden = false;
+    statsBody.innerHTML = 'Loading…';
+
+    try {
+      const total = await conn.query('SELECT COUNT(*) AS n FROM nar');
+      const byProvince = await conn.query(
+        'SELECT COALESCE(PROV_CODE, MAIL_PROV_ABVN, \'?\') AS prov, COUNT(*) AS n ' +
+        'FROM nar GROUP BY 1 ORDER BY 2 DESC LIMIT 20'
+      );
+
+      const totalN = total.toArray()[0].n.toString();
+      const rows = byProvince.toArray();
+
+      let html = `<p class="mb-1"><strong>Total records:</strong> ${Number(totalN).toLocaleString()}</p>`;
+      html += '<p class="mb-1"><strong>Records by province:</strong></p><ul class="mb-0 ps-3">';
+      for (const r of rows) {
+        html += `<li>${r.prov}: ${Number(r.n).toLocaleString()}</li>`;
+      }
+      html += '</ul>';
+      statsBody.innerHTML = html;
+    } catch (err) {
+      statsBody.textContent = `Could not load stats: ${err.message}`;
+    }
+  }
+
+  // ── Input sanitisation helpers ─────────────────────────────────────────────
+  /** Allow only alphanumeric characters and spaces — safe for all query params. */
+  function sanitizeAlphanumeric(value) {
+    return value.replace(/[^A-Za-z0-9 ]/g, '').trim();
+  }
+
+  /** Allow only uppercase letters — used for province codes. */
+  function sanitizeProvince(value) {
+    return value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 2);
+  }
+
+  /** Allow only alphanumeric characters — used for postal codes. */
+  function sanitizePostal(value) {
+    return value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 6);
+  }
+
+  // ── Run a search query ─────────────────────────────────────────────────────
+  async function runSearch() {
+    const postal   = sanitizePostal(document.getElementById('search-postal').value);
+    const city     = sanitizeAlphanumeric(document.getElementById('search-city').value);
+    const province = sanitizeProvince(document.getElementById('search-province').value);
+
+    if (!postal && !city && !province) {
+      setStatus('⚠️ Enter at least one search criterion.', 'warning');
+      return;
+    }
+
+    const conditions = [];
+    if (postal)   conditions.push(`MAIL_POSTAL_CODE = '${postal}'`);
+    if (city)     conditions.push(`(CSD_ENG_NAME ILIKE '%${city}%' OR MAIL_MUN_NAME ILIKE '%${city}%')`);
+    if (province) conditions.push(`(PROV_CODE = '${province}' OR MAIL_PROV_ABVN = '${province}')`);
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const sql = `SELECT * FROM nar ${where} LIMIT 500`;
+
+    setStatus('⏳ Running query…');
+    try {
+      const result = await conn.query(sql);
+      lastResults = result.toArray().map(r => Object.fromEntries(
+        Object.entries(r).map(([k, v]) => [k, v === null ? '' : String(v)])
+      ));
+      renderResults(lastResults, result.schema.fields.map(f => f.name));
+      setStatus(`✅ Query complete — showing ${lastResults.length} of up to 500 results.`, 'success');
+    } catch (err) {
+      setStatus(`❌ Query error: ${err.message}`, 'danger');
+      console.error(err);
+    }
+  }
+
+  // ── Render results table ───────────────────────────────────────────────────
+  function renderResults(rows, columns) {
+    const section  = document.getElementById('results-section');
+    const thead    = document.getElementById('results-thead');
+    const tbody    = document.getElementById('results-tbody');
+    const countEl  = document.getElementById('results-count');
+
+    if (!rows.length) {
+      section.hidden = false;
+      countEl.textContent = 'No results found.';
+      thead.innerHTML = '';
+      tbody.innerHTML = '';
+      return;
+    }
+
+    countEl.textContent = `${rows.length.toLocaleString()} result${rows.length === 1 ? '' : 's'}`;
+
+    // Header
+    thead.innerHTML = '<tr>' + columns.map(c => `<th>${c}</th>`).join('') + '</tr>';
+
+    // Body
+    const fragment = document.createDocumentFragment();
+    for (const row of rows) {
+      const tr = document.createElement('tr');
+      for (const col of columns) {
+        const td = document.createElement('td');
+        td.textContent = row[col] ?? '';
+        tr.appendChild(td);
+      }
+      fragment.appendChild(tr);
+    }
+    tbody.innerHTML = '';
+    tbody.appendChild(fragment);
+
+    section.hidden = false;
+  }
+
+  // ── CSV download ───────────────────────────────────────────────────────────
+  function downloadCSV() {
+    if (!lastResults.length) return;
+    const cols = Object.keys(lastResults[0]);
+    const lines = [cols.join(',')];
+    for (const row of lastResults) {
+      lines.push(cols.map(c => `"${(row[c] ?? '').replace(/"/g, '""')}"`).join(','));
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'nar_results.csv';
+    a.click();
+  }
+
+  // ── Event listeners ────────────────────────────────────────────────────────
+  document.getElementById('btn-load-url').addEventListener('click', () => {
+    const url = document.getElementById('parquet-url').value.trim();
+    loadParquetUrl(url);
+  });
+
+  document.getElementById('parquet-url').addEventListener('keydown', e => {
+    if (e.key === 'Enter') loadParquetUrl(e.target.value.trim());
+  });
+
+  btnSearch.addEventListener('click', runSearch);
+
+  ['search-postal', 'search-city', 'search-province'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') runSearch();
+    });
+  });
+
+  document.getElementById('btn-download-csv').addEventListener('click', downloadCSV);
+
+  // ── Boot ───────────────────────────────────────────────────────────────────
+  initDuckDB();
+</script>
+
+</body>
+</html>
