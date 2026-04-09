@@ -8,6 +8,7 @@ from datetime import datetime
 from .downloader import NARDownloader
 from .processor import NARProcessor
 from .database import NARDatabase
+from .parquet_exporter import NARParquetExporter
 
 
 @click.group()
@@ -400,6 +401,52 @@ def init_fast(local_zip: Path, sample_size: int, max_workers: int):
         click.echo(f"❌ Error: {e}")
         import traceback
         traceback.print_exc()
+
+
+@main.command("export-parquet")
+@click.option(
+    "--data-dir",
+    type=click.Path(path_type=Path),
+    help="Base data directory (default: ./data)",
+)
+@click.option(
+    "--output",
+    type=click.Path(path_type=Path),
+    help="Output Parquet file path (default: <data-dir>/parquet_output/nar_addresses.parquet)",
+)
+def export_parquet(data_dir: Path, output: Path):
+    """Export processed NAR data to a single Parquet file"""
+    exporter = NARParquetExporter(data_dir)
+    try:
+        parquet_path = exporter.export_full(output)
+        click.echo(f"✅ Parquet file written to: {parquet_path}")
+    except Exception as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        raise click.Abort()
+
+
+@main.command("export-parquet-by-province")
+@click.option(
+    "--data-dir",
+    type=click.Path(path_type=Path),
+    help="Base data directory (default: ./data)",
+)
+@click.option(
+    "--output-dir",
+    type=click.Path(path_type=Path),
+    help="Output directory for partitioned Parquet files (default: <data-dir>/parquet_output)",
+)
+def export_parquet_by_province(data_dir: Path, output_dir: Path):
+    """Export processed NAR data to Parquet files partitioned by province"""
+    exporter = NARParquetExporter(data_dir)
+    try:
+        created = exporter.export_by_province(output_dir)
+        click.echo(f"✅ Wrote {len(created)} province partition(s):")
+        for p in created:
+            click.echo(f"   {p}")
+    except Exception as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        raise click.Abort()
 
 
 if __name__ == '__main__':
