@@ -91,17 +91,17 @@ class NARParquetExporter:
             if progress_callback:
                 progress_callback(msg)
 
+        # Filter to only process Address files (skip Location files)
+        # Address files have the address columns needed for browser queries
+        # Location files have a different schema (lat/long, economic regions, etc)
+        address_files = [f for f in csv_files if 'Address' in f.name]
+        if address_files:
+            _log(f"ℹ️  Processing only Address files ({len(address_files)}/{len(csv_files)})")
+            _log(f"⏭️  Skipping Location files for now")
+            csv_files = address_files
+
         _log(f"Exporting {len(csv_files)} CSV file(s) to Parquet…")
         _log(f"Output directory: {self.parquet_dir}")
-
-        # First pass: collect all unique columns across all CSVs
-        all_columns: set[str] = set()
-        for csv_path in csv_files:
-            for chunk_df in self._stream_csv(csv_path):
-                if not chunk_df.empty:
-                    all_columns.update(chunk_df.columns)
-        
-        _log(f"  Found {len(all_columns)} unique columns across all files")
 
         # Collect all processed data grouped by province so we can write
         # complete per-province files without keeping everything in RAM.
@@ -111,19 +111,11 @@ class NARParquetExporter:
         arrow_schema: Optional[pa.Schema] = None
 
         try:
-            # Second pass: process and write with normalized columns
             for csv_path in csv_files:
                 _log(f"  Processing {csv_path.name}…")
                 for chunk_df in self._stream_csv(csv_path):
                     if chunk_df.empty:
                         continue
-
-                    # Normalize: ensure all columns exist (fill missing with None)
-                    for col in all_columns:
-                        if col not in chunk_df.columns:
-                            chunk_df[col] = None
-                    # Ensure consistent column ordering
-                    chunk_df = chunk_df[sorted(all_columns)]
 
                     # Determine province column
                     province_col = self._province_column(chunk_df)
