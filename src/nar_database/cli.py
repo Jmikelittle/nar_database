@@ -5,6 +5,7 @@ Command Line Interface for NAR Database
 import click
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
 from .downloader import NARDownloader
 from .processor import NARProcessor
 from .database import NARDatabase
@@ -400,6 +401,140 @@ def init_fast(local_zip: Path, sample_size: int, max_workers: int):
         click.echo(f"❌ Error: {e}")
         import traceback
         traceback.print_exc()
+
+
+@main.command(name="init-parquet")
+@click.option(
+    "--data-url",
+    type=str,
+    help="URL to download the NAR ZIP file from Statistics Canada",
+)
+@click.option(
+    "--local-zip",
+    type=click.Path(exists=True, path_type=Path),
+    help="Use a local ZIP file instead of downloading",
+)
+@click.option(
+    "--auto-latest",
+    is_flag=True,
+    help="Automatically detect and download the latest version",
+)
+@click.option(
+    "--data-dir",
+    type=click.Path(path_type=Path),
+    help="Root data directory (default: ./data)",
+)
+@click.option(
+    "--parquet-dir",
+    type=click.Path(path_type=Path),
+    help="Output directory for Parquet files (default: ./data/parquet)",
+)
+@click.option(
+    "--keep-csv",
+    is_flag=True,
+    default=False,
+    help="Keep CSV files and ZIP after Parquet export (default: delete them)",
+)
+def init_parquet(
+    data_url: str,
+    local_zip: Path,
+    auto_latest: bool,
+    data_dir: Path,
+    parquet_dir: Path,
+    keep_csv: bool,
+):
+    """Download ZIP, convert CSVs to Parquet, and clean up temporary files.
+
+    Workflow:
+      1. Download the NAR ZIP from Statistics Canada (or use a local file).
+      2. Extract the CSV files to a temporary directory.
+      3. Stream-convert each CSV to province-partitioned Parquet (snappy).
+      4. Delete the CSV files and ZIP archive (unless --keep-csv).
+      5. Print a summary of the generated Parquet files.
+
+    The resulting Parquet files can be committed to docs/data/parquet/ and
+    queried directly in the browser via the GitHub Pages DuckDB-wasm interface.
+    """
+    try:
+        from .parquet_exporter import NARParquetExporter
+    except ImportError as exc:
+        click.echo(
+            f"❌ {exc}\n"
+            "Install Parquet support with: pip install 'nar-database[parquet]'",
+            err=True,
+        )
+        raise click.Abort()
+
+    start_time = datetime.now()
+    click.echo(f"🚀 NAR → Parquet export")
+    click.echo(f"⏰ Started at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+
+    # ------------------------------------------------------------------ #
+    # Step 1 – Obtain CSV files                                           #
+    # ------------------------------------------------------------------ #
+    click.echo("1️⃣  Downloading / extracting data…")
+
+    resolved_data_dir = data_dir or Path("data")
+    downloader = NARDownloader(resolved_data_dir, local_zip_path=local_zip)
+
+    zip_path: Optional[Path] = None  # track for later cleanup
+
+    try:
+        if local_zip:
+            zip_path = downloader.use_local_zip(local_zip)
+            extract_dir = downloader.extract(zip_path)
+        else:
+            zip_path = downloader.download(auto_detect_latest=auto_latest)
+            extract_dir = downloader.extract(zip_path)
+
+        csv_files = downloader.list_csv_files(extract_dir)
+    except Exception as exc:
+        click.echo(f"❌ Error during download/extraction: {exc}", err=True)
+        raise click.Abort()
+
+    click.echo(f"✅ Found {len(csv_files)} CSV file(s) (version: {downloader.version})\n")
+
+    # ------------------------------------------------------------------ #
+    # Step 2 – Convert to Parquet                                         #
+    # ------------------------------------------------------------------ #
+    click.echo("2️⃣  Converting CSVs to Parquet…")
+
+    def _progress(msg: str) -> None:
+        click.echo(f"   {msg}")
+
+    try:
+        exporter = NARParquetExporter(
+            data_dir=resolved_data_dir,
+            parquet_dir=parquet_dir,
+        )
+        summary = exporter.export_csv_files(
+            csv_files,
+            keep_csv=keep_csv,
+            zip_path=zip_path if not keep_csv else None,
+            progress_callback=_progress,
+        )
+    except Exception as exc:
+        click.echo(f"❌ Error during Parquet export: {exc}", err=True)
+        import traceback
+        traceback.print_exc()
+        raise click.Abort()
+
+    # ------------------------------------------------------------------ #
+    # Step 3 – Summary                                                    #
+    # ------------------------------------------------------------------ #
+    end_time = datetime.now()
+    duration = end_time - start_time
+
+    click.echo("\n✅ Parquet export complete!")
+    click.echo(f"   📁 Output directory : {summary['parquet_dir']}")
+    click.echo(f"   📊 Total rows        : {summary['total_rows']:,}")
+    click.echo(f"   🗺️  Provinces         : {', '.join(summary['provinces'])}")
+    click.echo(f"   📄 Metadata file     : {summary['metadata_path']}")
+    click.echo(f"   🕒 Duration          : {duration}")
+    click.echo(f"\n💡 Next steps:")
+    click.echo(f"   1. Copy {summary['parquet_dir']} to docs/data/parquet/")
+    click.echo(f"   2. git add docs/data/parquet && git commit -m 'Update NAR data'")
+    click.echo(f"   3. git push → data is live on GitHub Pages!")
 
 
 if __name__ == '__main__':

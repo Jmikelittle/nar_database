@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NAR Address Search – Statistics Canada</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header>
+    <h1>🇨🇦 National Address Register</h1>
+    <p class="subtitle">Search Statistics Canada's National Address Register via DuckDB-wasm</p>
+  </header>
+
+  <main>
+    <!-- Status / loading banner -->
+    <div id="status-banner" class="banner banner-info" role="status" aria-live="polite">
+      ⏳ Loading DuckDB-wasm… please wait.
+    </div>
+
+    <!-- Dataset statistics -->
+    <section id="stats-section" class="card hidden" aria-labelledby="stats-heading">
+      <h2 id="stats-heading">📊 Dataset Statistics</h2>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <span class="stat-value" id="stat-total">—</span>
+          <span class="stat-label">Total Addresses</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-value" id="stat-provinces">—</span>
+          <span class="stat-label">Provinces / Territories</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-value" id="stat-cities">—</span>
+          <span class="stat-label">Unique Cities</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Search form -->
+    <section class="card" aria-labelledby="search-heading">
+      <h2 id="search-heading">🔍 Search Addresses</h2>
+
+      <div class="tab-bar" role="tablist">
+        <button class="tab active" role="tab" aria-selected="true"  data-tab="postal">By Postal Code</button>
+        <button class="tab"        role="tab" aria-selected="false" data-tab="city">By City &amp; Province</button>
+        <button class="tab"        role="tab" aria-selected="false" data-tab="province">Browse Province</button>
+      </div>
+
+      <!-- Tab: postal code -->
+      <div class="tab-content active" id="tab-postal">
+        <label for="input-postal">Postal Code <span class="hint">(e.g. K1A0A6)</span></label>
+        <div class="input-row">
+          <input id="input-postal" type="text" placeholder="K1A0A6" maxlength="7"
+                 autocomplete="off" spellcheck="false" />
+          <button id="btn-postal" class="btn-primary">Search</button>
+        </div>
+      </div>
+
+      <!-- Tab: city + province -->
+      <div class="tab-content" id="tab-city">
+        <div class="input-row">
+          <div class="input-group">
+            <label for="input-city">City</label>
+            <input id="input-city" type="text" placeholder="Ottawa" autocomplete="off" />
+          </div>
+          <div class="input-group">
+            <label for="input-province-city">Province</label>
+            <select id="input-province-city">
+              <option value="">All provinces</option>
+            </select>
+          </div>
+          <button id="btn-city" class="btn-primary">Search</button>
+        </div>
+      </div>
+
+      <!-- Tab: browse province -->
+      <div class="tab-content" id="tab-province">
+        <div class="input-row">
+          <div class="input-group">
+            <label for="input-province-browse">Province</label>
+            <select id="input-province-browse">
+              <option value="">Select a province…</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label for="input-limit">Max results</label>
+            <select id="input-limit">
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="250">250</option>
+              <option value="500">500</option>
+            </select>
+          </div>
+          <button id="btn-province" class="btn-primary">Browse</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <section id="results-section" class="card hidden" aria-labelledby="results-heading">
+      <div class="results-header">
+        <h2 id="results-heading">Results <span id="results-count" class="badge"></span></h2>
+        <button id="btn-download-csv" class="btn-secondary">⬇ Download CSV</button>
+      </div>
+      <div class="table-wrapper">
+        <table id="results-table" aria-live="polite">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      Data source: <a href="https://www150.statcan.gc.ca/n1/pub/46-26-0002/462600022022001-eng.htm"
+         target="_blank" rel="noopener">Statistics Canada – National Address Register</a>.
+      Queries run entirely in your browser via
+      <a href="https://duckdb.org/docs/api/wasm/overview" target="_blank" rel="noopener">DuckDB-wasm</a>.
+    </p>
+  </footer>
+
+  <!-- DuckDB-wasm CDN bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@latest/dist/duckdb-browser-blocking.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
