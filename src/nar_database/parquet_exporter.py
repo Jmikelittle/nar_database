@@ -147,7 +147,7 @@ class NARParquetExporter:
 
         # Write metadata
         metadata_path = self._write_metadata(
-            province_row_counts, arrow_schema, total_rows
+            province_row_counts, arrow_schema, total_rows, parquet_files
         )
         _log(f"📄 Metadata written to {metadata_path}")
 
@@ -218,6 +218,7 @@ class NARParquetExporter:
         province_row_counts: dict,
         arrow_schema: Optional["pa.Schema"],
         total_rows: int,
+        parquet_files: Optional[List[Path]] = None,
     ) -> Path:
         """Write a JSON metadata file alongside the Parquet directory."""
         schema_fields = []
@@ -227,10 +228,24 @@ class NARParquetExporter:
                     {"name": field.name, "type": str(field.type)}
                 )
 
+        # Convert parquet file paths to relative paths for metadata
+        file_list = []
+        if parquet_files:
+            for pf in parquet_files:
+                # Store paths relative to the parquet directory
+                # e.g., province=NT/part-0.parquet
+                try:
+                    rel_path = pf.relative_to(self.parquet_dir)
+                    file_list.append(str(rel_path))
+                except ValueError:
+                    # If relative_to fails, use the path as-is
+                    file_list.append(str(pf))
+
         metadata = {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "total_rows": total_rows,
             "provinces": province_row_counts,
+            "parquet_files": file_list,
             "schema": schema_fields,
             "compression": "snappy",
             "partition_column": "province",

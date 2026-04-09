@@ -52,8 +52,110 @@ const getParquetBaseUrl = () => {
 };
 
 const PARQUET_BASE_URL = getParquetBaseUrl();
-const PARQUET_GLOB = `${PARQUET_BASE_URL}**/*.parquet`;
 const METADATA_URL = `${PARQUET_BASE_URL}_metadata.json`;
+
+// Cache for province mapping (alpha/numeric code -> full name)
+let provinceMapping = null;
+
+/**
+ * Load province mapping from DRSprovinces.json or use fallback
+ * Maps: NT -> Northwest Territories, 61 -> Northwest Territories, etc.
+ */
+async function loadProvinceMapping() {
+  if (provinceMapping) return provinceMapping;
+  
+  const mapping = {};
+  
+  try {
+    // Try to fetch the hardcoded mapping from the site root
+    // The DRSprovinces.json is in src/, so we include the mapping in this file
+    // Format: { code: name } for both alpha and numeric codes
+    
+    // Hardcoded mapping of province codes to full English names
+    // Data source: Statistics Canada DRS provinces
+    const provinces = [
+      { alpha: "NL", numeric: "10", name: "Newfoundland and Labrador" },
+      { alpha: "PE", numeric: "11", name: "Prince Edward Island" },
+      { alpha: "NS", numeric: "12", name: "Nova Scotia" },
+      { alpha: "NB", numeric: "13", name: "New Brunswick" },
+      { alpha: "QC", numeric: "24", name: "Quebec" },
+      { alpha: "ON", numeric: "35", name: "Ontario" },
+      { alpha: "MB", numeric: "46", name: "Manitoba" },
+      { alpha: "SK", numeric: "47", name: "Saskatchewan" },
+      { alpha: "AB", numeric: "48", name: "Alberta" },
+      { alpha: "BC", numeric: "59", name: "British Columbia" },
+      { alpha: "YT", numeric: "60", name: "Yukon" },
+      { alpha: "NT", numeric: "61", name: "Northwest Territories" },
+      { alpha: "NU", numeric: "62", name: "Nunavut" },
+    ];
+    
+    // Build bidirectional mapping: both alpha and numeric codes map to full name
+    for (const prov of provinces) {
+      mapping[prov.alpha] = prov.name;
+      mapping[prov.numeric] = prov.name;
+    }
+    
+    provinceMapping = mapping;
+    console.log("✓ Province mapping loaded:", Object.keys(mapping).length, "entries");
+    return mapping;
+  } catch (err) {
+    console.error("Error loading province mapping:", err);
+    return {};
+  }
+}
+
+/**
+ * Convert a province code (alpha or numeric) to full English name
+ * E.g., "NT" -> "Northwest Territories", "61" -> "Northwest Territories"
+ */
+async function getFullProvinceName(code) {
+  const mapping = await loadProvinceMapping();
+  return mapping[code] || code; // Return code if not found
+}
+
+// Cache for loaded metadata
+let metadataCache = null;
+
+async function loadMetadata() {
+  if (metadataCache) return metadataCache;
+  
+  console.log("📥 Fetching metadata from:", METADATA_URL);
+  const resp = await fetch(METADATA_URL);
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch metadata: ${resp.status}`);
+  }
+  
+  metadataCache = await resp.json();
+  console.log("✓ Metadata loaded:", metadataCache);
+  return metadataCache;
+}
+
+// Build actual file URLs from metadata for DuckDB
+async function getParquetFileUrls() {
+  const meta = await loadMetadata();
+  const files = meta.parquet_files || [];
+  
+  return files.map(file => {
+    // Parquet files path is like: province=NT/part-0.parquet
+    // Ensure it's a relative path first
+    const relativePath = file.replace(/^.*data\/parquet\//, '');
+    const url = `${PARQUET_BASE_URL}${relativePath}`;
+    console.log("📄 Parquet file URL:", url);
+    return url;
+  });
+}
+
+// For DuckDB queries, create a UNION ALL of all parquet files
+async function buildParquetScanQuery() {
+  const files = await getParquetFileUrls();
+  if (files.length === 0) {
+    throw new Error("No Parquet files found in metadata");
+  }
+  
+  // Read each parquet file and union them
+  const selects = files.map(file => `SELECT * FROM read_parquet('${file}')`);
+  return selects.join(' UNION ALL ');
+}
 
 let db   = null;
 let conn = null;
@@ -190,6 +292,10 @@ async function populateProvinceSelectors(provinces) {
     document.getElementById("input-province-city"),
     document.getElementById("input-province-browse"),
   ];
+  
+  // Ensure province mapping is loaded
+  await loadProvinceMapping();
+  
   for (const sel of selects) {
     // Keep the placeholder option, add provinces
     const placeholder = sel.querySelector("option");
@@ -198,7 +304,8 @@ async function populateProvinceSelectors(provinces) {
     for (const prov of provinces) {
       const opt   = document.createElement("option");
       opt.value   = prov;
-      opt.textContent = prov;
+      // Display full province name while keeping code as value
+      opt.textContent = await getFullProvinceName(prov);
       sel.appendChild(opt);
     }
   }
@@ -209,40 +316,35 @@ async function populateProvinceSelectors(provinces) {
 // ---------------------------------------------------------------------------
 
 async function loadStatistics() {
-  // Try metadata JSON first (fast, no SQL needed)
+  // Load metadata JSON (fast, no SQL needed)
   try {
-    console.log("📥 Fetching metadata from:", METADATA_URL);
-    const resp = await fetch(METADATA_URL);
-    if (resp.ok) {
-      const meta = await resp.json();
-      console.log("✓ Metadata loaded:", meta);
-      document.getElementById("stat-total").textContent =
-        (meta.total_rows ?? 0).toLocaleString();
-      const provinces = Object.keys(meta.provinces ?? {}).sort();
-      document.getElementById("stat-provinces").textContent = provinces.length;
-      await populateProvinceSelectors(provinces);
-      statsSection.classList.remove("hidden");
+    const meta = await loadMetadata();
+    
+    document.getElementById("stat-total").textContent =
+      (meta.total_rows ?? 0).toLocaleString();
+    const provinces = Object.keys(meta.provinces ?? {}).sort();
+    document.getElementById("stat-provinces").textContent = provinces.length;
+    await populateProvinceSelectors(provinces);
+    statsSection.classList.remove("hidden");
 
-      // Get city count from DuckDB (heavier query, run async)
-      loadCityCount();
-      return;
-    } else {
-      console.warn("⚠️ Metadata fetch returned status:", resp.status);
-    }
+    // Get city count from DuckDB (heavier query, run async)
+    loadCityCount();
+    return;
   } catch (err) {
-    console.warn("⚠️ Could not fetch metadata:", err.message);
+    console.warn("⚠️ Could not load metadata:", err.message);
     // fall through to SQL-based stats
   }
 
-  // Fallback: query DuckDB directly
+  // Fallback: query DuckDB directly (slower)
   try {
-    console.log("📊 Running DuckDB query with glob:", PARQUET_GLOB);
+    console.log("📊 Running DuckDB query on parquet files...");
+    const scanQuery = await buildParquetScanQuery();
     const result = await conn.query(`
       SELECT
         COUNT(*)                       AS total_rows,
         COUNT(DISTINCT province)       AS province_count,
         COUNT(DISTINCT city)           AS city_count
-      FROM parquet_scan('${PARQUET_GLOB}')
+      FROM (${scanQuery})
     `);
     const row = result.toArray()[0];
     document.getElementById("stat-total").textContent =
@@ -256,7 +358,7 @@ async function loadStatistics() {
     // Province list for selectors
     const provResult = await conn.query(`
       SELECT DISTINCT province
-      FROM parquet_scan('${PARQUET_GLOB}')
+      FROM (${scanQuery})
       WHERE province IS NOT NULL
       ORDER BY province
     `);
@@ -270,14 +372,17 @@ async function loadStatistics() {
 
 async function loadCityCount() {
   try {
+    const scanQuery = await buildParquetScanQuery();
     const result = await conn.query(`
       SELECT COUNT(DISTINCT city) AS city_count
-      FROM parquet_scan('${PARQUET_GLOB}')
+      FROM (${scanQuery})
     `);
     const row = result.toArray()[0];
     document.getElementById("stat-cities").textContent =
       Number(row.city_count).toLocaleString();
-  } catch (_) {}
+  } catch (err) {
+    console.error("Could not load city count:", err);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -311,9 +416,10 @@ document.getElementById("btn-postal").addEventListener("click", async () => {
   setLoading(true);
   setBanner("🔍 Searching…", "info");
   try {
+    const scanQuery = await buildParquetScanQuery();
     const rows = await runPrepared(
       `SELECT *
-       FROM parquet_scan('${PARQUET_GLOB}')
+       FROM (${scanQuery})
        WHERE UPPER(REPLACE(postal_code, ' ', '')) = $1
        LIMIT 500`,
       raw
@@ -344,20 +450,21 @@ document.getElementById("btn-city").addEventListener("click", async () => {
   setLoading(true);
   setBanner("🔍 Searching…", "info");
   try {
+    const scanQuery = await buildParquetScanQuery();
     let sql;
     let params;
     if (city && province) {
-      sql    = `SELECT * FROM parquet_scan('${PARQUET_GLOB}')
+      sql    = `SELECT * FROM (${scanQuery})
                 WHERE LOWER(city) LIKE LOWER($1) AND province = $2
                 LIMIT 500`;
       params = [`${city}%`, province];
     } else if (city) {
-      sql    = `SELECT * FROM parquet_scan('${PARQUET_GLOB}')
+      sql    = `SELECT * FROM (${scanQuery})
                 WHERE LOWER(city) LIKE LOWER($1)
                 LIMIT 500`;
       params = [`${city}%`];
     } else {
-      sql    = `SELECT * FROM parquet_scan('${PARQUET_GLOB}')
+      sql    = `SELECT * FROM (${scanQuery})
                 WHERE province = $1
                 LIMIT 500`;
       params = [province];
@@ -384,8 +491,9 @@ document.getElementById("btn-province").addEventListener("click", async () => {
   setLoading(true);
   setBanner("🔍 Loading…", "info");
   try {
+    const scanQuery = await buildParquetScanQuery();
     const rows = await runPrepared(
-      `SELECT * FROM parquet_scan('${PARQUET_GLOB}')
+      `SELECT * FROM (${scanQuery})
        WHERE province = $1
        LIMIT $2`,
       province,
@@ -410,7 +518,7 @@ async function initDuckDB() {
     // DuckDB is now imported as ES module above
     console.log("🚀 DuckDB module loaded. Available exports:", Object.keys(duckdb).slice(0, 15));
     console.log("📁 Parquet base URL:", PARQUET_BASE_URL);
-    console.log("📑 Parquet glob pattern:", PARQUET_GLOB);
+    console.log("📑 Metadata URL:", METADATA_URL);
     
     // Select appropriate bundle based on browser capabilities
     const bundle = await duckdb.selectBundle(DUCKDB_BUNDLES);
