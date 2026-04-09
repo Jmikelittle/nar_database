@@ -1,0 +1,231 @@
+/* =====================================================================
+   NAR Address Search – stylesheet
+   ===================================================================== */
+
+/* ---- Reset & base -------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --clr-bg:        #f4f6f9;
+  --clr-surface:   #ffffff;
+  --clr-primary:   #d62828;   /* Canada red */
+  --clr-primary-d: #a81e1e;
+  --clr-text:      #222222;
+  --clr-muted:     #666666;
+  --clr-border:    #dde1e7;
+  --clr-info-bg:   #e8f4fd;
+  --clr-info-bdr:  #90c8f0;
+  --clr-success-bg:#e6f4ea;
+  --clr-success-bdr:#81c995;
+  --clr-error-bg:  #fce8e6;
+  --clr-error-bdr: #f28b82;
+  --radius:        8px;
+  --shadow:        0 2px 8px rgba(0,0,0,.10);
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--clr-bg);
+  color: var(--clr-text);
+  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Header -------------------------------------------------------- */
+header {
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 1.5rem 2rem;
+  text-align: center;
+}
+header h1 { font-size: 1.8rem; }
+header .subtitle { opacity: .9; margin-top: .25rem; font-size: .95rem; }
+
+/* ---- Main content -------------------------------------------------- */
+main {
+  flex: 1;
+  max-width: 960px;
+  width: 100%;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ---- Cards --------------------------------------------------------- */
+.card {
+  background: var(--clr-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+}
+.card h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+
+/* ---- Banners ------------------------------------------------------- */
+.banner {
+  border-radius: var(--radius);
+  padding: .75rem 1rem;
+  font-size: .95rem;
+}
+.banner-info    { background: var(--clr-info-bg);    border: 1px solid var(--clr-info-bdr); }
+.banner-success { background: var(--clr-success-bg); border: 1px solid var(--clr-success-bdr); }
+.banner-error   { background: var(--clr-error-bg);   border: 1px solid var(--clr-error-bdr); }
+
+/* ---- Stats grid ---------------------------------------------------- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+.stat-box {
+  background: var(--clr-bg);
+  border-radius: var(--radius);
+  padding: 1rem;
+  text-align: center;
+}
+.stat-value { display: block; font-size: 1.6rem; font-weight: 700; color: var(--clr-primary); }
+.stat-label { font-size: .8rem; color: var(--clr-muted); text-transform: uppercase; letter-spacing: .05em; }
+
+/* ---- Tab bar ------------------------------------------------------- */
+.tab-bar {
+  display: flex;
+  gap: .5rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 2px solid var(--clr-border);
+  padding-bottom: .5rem;
+}
+.tab {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: .4rem .9rem;
+  border-radius: 4px 4px 0 0;
+  font-size: .9rem;
+  color: var(--clr-muted);
+  transition: background .15s, color .15s;
+}
+.tab:hover  { background: var(--clr-bg); color: var(--clr-text); }
+.tab.active { background: var(--clr-primary); color: #fff; }
+
+/* ---- Tab content --------------------------------------------------- */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ---- Inputs -------------------------------------------------------- */
+label {
+  display: block;
+  font-size: .85rem;
+  font-weight: 600;
+  margin-bottom: .3rem;
+  color: var(--clr-text);
+}
+label .hint { font-weight: 400; color: var(--clr-muted); }
+
+input[type="text"],
+select {
+  width: 100%;
+  padding: .5rem .75rem;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius);
+  font-size: .95rem;
+  color: var(--clr-text);
+  background: var(--clr-surface);
+  transition: border-color .15s;
+}
+input[type="text"]:focus,
+select:focus {
+  outline: none;
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 3px rgba(214,40,40,.15);
+}
+
+.input-row {
+  display: flex;
+  gap: .75rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.input-group { flex: 1; min-width: 140px; }
+
+/* ---- Buttons ------------------------------------------------------- */
+.btn-primary,
+.btn-secondary {
+  padding: .5rem 1.25rem;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: .95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background .15s, opacity .15s;
+}
+.btn-primary  { background: var(--clr-primary); color: #fff; }
+.btn-primary:hover  { background: var(--clr-primary-d); }
+.btn-primary:disabled,
+.btn-secondary:disabled { opacity: .5; cursor: not-allowed; }
+.btn-secondary { background: var(--clr-bg); color: var(--clr-text); border: 1px solid var(--clr-border); }
+.btn-secondary:hover { background: var(--clr-border); }
+
+/* ---- Results ------------------------------------------------------- */
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+.badge {
+  background: var(--clr-bg);
+  border: 1px solid var(--clr-border);
+  border-radius: 999px;
+  font-size: .8rem;
+  padding: .1rem .6rem;
+  color: var(--clr-muted);
+  font-weight: 400;
+}
+
+.table-wrapper { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+}
+thead th {
+  background: var(--clr-bg);
+  text-align: left;
+  padding: .5rem .75rem;
+  border-bottom: 2px solid var(--clr-border);
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--clr-muted);
+  white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid var(--clr-border); }
+tbody tr:hover { background: var(--clr-bg); }
+tbody td { padding: .45rem .75rem; }
+
+/* ---- Utility ------------------------------------------------------- */
+.hidden { display: none !important; }
+
+/* ---- Footer -------------------------------------------------------- */
+footer {
+  text-align: center;
+  padding: 1.5rem;
+  font-size: .82rem;
+  color: var(--clr-muted);
+}
+footer a { color: var(--clr-primary); text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+
+/* ---- Responsive ---------------------------------------------------- */
+@media (max-width: 600px) {
+  header h1 { font-size: 1.3rem; }
+  .input-row { flex-direction: column; }
+  .btn-primary, .btn-secondary { width: 100%; }
+}
