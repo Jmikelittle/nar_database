@@ -28,8 +28,32 @@ const DUCKDB_BUNDLES = {
   },
 };
 
-const PARQUET_GLOB = "data/parquet/**/*.parquet";
-const METADATA_URL = "data/parquet/_metadata.json";
+// Build the base URL for parquet files (handle GitHub Pages URLs)
+// For GitHub Pages: https://username.github.io/nar_database/data/parquet/
+// For local serving: http://localhost:8000/data/parquet/
+const getParquetBaseUrl = () => {
+  const { protocol, hostname, pathname } = window.location;
+  
+  // If on localhost, use relative path
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'data/parquet/';
+  }
+  
+  // For GitHub Pages or other hosts, build full URL
+  const pathParts = pathname.split('/').filter(Boolean);
+  let basePath = '/';
+  
+  // If we're in a subdirectory repo (e.g., /nar_database/), include it
+  if (pathParts.length > 0) {
+    basePath = '/' + pathParts[0] + '/';
+  }
+  
+  return `${protocol}//${hostname}${basePath}data/parquet/`;
+};
+
+const PARQUET_BASE_URL = getParquetBaseUrl();
+const PARQUET_GLOB = `${PARQUET_BASE_URL}**/*.parquet`;
+const METADATA_URL = `${PARQUET_BASE_URL}_metadata.json`;
 
 let db   = null;
 let conn = null;
@@ -187,9 +211,11 @@ async function populateProvinceSelectors(provinces) {
 async function loadStatistics() {
   // Try metadata JSON first (fast, no SQL needed)
   try {
+    console.log("📥 Fetching metadata from:", METADATA_URL);
     const resp = await fetch(METADATA_URL);
     if (resp.ok) {
       const meta = await resp.json();
+      console.log("✓ Metadata loaded:", meta);
       document.getElementById("stat-total").textContent =
         (meta.total_rows ?? 0).toLocaleString();
       const provinces = Object.keys(meta.provinces ?? {}).sort();
@@ -200,13 +226,17 @@ async function loadStatistics() {
       // Get city count from DuckDB (heavier query, run async)
       loadCityCount();
       return;
+    } else {
+      console.warn("⚠️ Metadata fetch returned status:", resp.status);
     }
-  } catch (_) {
+  } catch (err) {
+    console.warn("⚠️ Could not fetch metadata:", err.message);
     // fall through to SQL-based stats
   }
 
   // Fallback: query DuckDB directly
   try {
+    console.log("📊 Running DuckDB query with glob:", PARQUET_GLOB);
     const result = await conn.query(`
       SELECT
         COUNT(*)                       AS total_rows,
@@ -233,7 +263,8 @@ async function loadStatistics() {
     const provinces = provResult.toArray().map((r) => r.province);
     await populateProvinceSelectors(provinces);
   } catch (err) {
-    console.warn("Could not load statistics:", err);
+    console.error("❌ Could not load statistics:", err);
+    setBanner("⚠️ Error loading statistics. Check browser console.", "error");
   }
 }
 
@@ -377,11 +408,13 @@ async function initDuckDB() {
 
   try {
     // DuckDB is now imported as ES module above
-    console.log("DuckDB module loaded. Available exports:", Object.keys(duckdb).slice(0, 15));
+    console.log("🚀 DuckDB module loaded. Available exports:", Object.keys(duckdb).slice(0, 15));
+    console.log("📁 Parquet base URL:", PARQUET_BASE_URL);
+    console.log("📑 Parquet glob pattern:", PARQUET_GLOB);
     
     // Select appropriate bundle based on browser capabilities
     const bundle = await duckdb.selectBundle(DUCKDB_BUNDLES);
-    console.log("Selected bundle:", bundle.mainModule.split('/').pop());
+    console.log("✓ Selected bundle:", bundle.mainModule.split('/').pop());
     
     // Create worker with the worker script
     const worker_url = URL.createObjectURL(
@@ -405,7 +438,7 @@ async function initDuckDB() {
       `❌ Failed to load DuckDB-wasm: ${err.message}`,
       "error"
     );
-    console.error("DuckDB initialization error:", err);
+    console.error("❌ DuckDB initialization error:", err);
     console.error("DuckDB module:", typeof duckdb);
     console.error("Available exports:", Object.keys(duckdb || {}));
   }
