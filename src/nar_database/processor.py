@@ -4,6 +4,7 @@ Handles reading, cleaning, and processing CSV files from the NAR dataset
 """
 
 import csv
+import json
 from pathlib import Path
 from typing import List, Dict, Any, Iterator, Optional
 import pandas as pd
@@ -27,6 +28,38 @@ class NARProcessor:
         self.raw_dir = self.data_dir / "raw" / "extracted"
         self.processed_dir = self.data_dir / "processed"
         self.processed_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Load province code mapping (numeric code -> alpha code)
+        self.province_mapping = self._load_province_mapping()
+    
+    def _load_province_mapping(self) -> Dict[str, str]:
+        """
+        Load the DRS provinces mapping for converting numeric to alpha codes
+        
+        Returns:
+            Dictionary mapping numeric codes to alpha codes (e.g., '61' -> 'NT')
+        """
+        try:
+            # Look for DRSprovinces.json in the src directory
+            provinces_file = Path(__file__).parent.parent / "DRSprovinces.json"
+            
+            if provinces_file.exists():
+                with open(provinces_file, 'r') as f:
+                    data = json.load(f)
+                    
+                # Create mapping: numeric_code (position 5) -> alpha_code (position 4)
+                mapping = {}
+                for record in data.get('records', []):
+                    if len(record) >= 6:
+                        numeric_code = record[5]  # Numeric Code
+                        alpha_code = record[4]    # Alpha Code
+                        mapping[numeric_code] = alpha_code
+                
+                return mapping
+        except Exception as e:
+            print(f"Warning: Could not load province mapping: {e}")
+        
+        return {}
     
     def discover_csv_files(self) -> List[Path]:
         """Find all CSV files in the raw data directory"""
@@ -302,6 +335,14 @@ class NARProcessor:
             df['city'] = df['city'].str.title()
         if 'province' in df.columns:
             df['province'] = df['province'].str.upper()
+        
+        # Convert numeric province codes to alpha codes for better readability
+        # Handle both 'province' and 'province_code' columns
+        for prov_col in ['province', 'province_code']:
+            if prov_col in df.columns and self.province_mapping:
+                df[prov_col] = df[prov_col].map(
+                    lambda x: self.province_mapping.get(str(x).strip(), str(x).strip())
+                )
             
         # Clean postal codes vectorized
         if 'postal_code' in df.columns:
@@ -312,12 +353,28 @@ class NARProcessor:
             if coord_col in df.columns:
                 df[coord_col] = pd.to_numeric(df[coord_col], errors='coerce')
         
-        # Filter out invalid records (must have street name and postal code)
-        df = df.dropna(subset=['street_name', 'postal_code'])
-        df = df[
-            (df['street_name'].str.strip() != '') & 
-            (df['postal_code'].str.strip() != '')
-        ]
+        # Filter out invalid records only if the columns exist
+        # (Location files may not have street_name/postal_code, only Address files do)
+        filter_columns = []
+        if 'street_name' in df.columns:
+            filter_columns.append('street_name')
+        if 'postal_code' in df.columns:
+            filter_columns.append('postal_code')
+        
+        # Only apply dropna and filtering if we have columns to check
+        if filter_columns:
+            df = df.dropna(subset=filter_columns)
+            conditions = []
+            for col in filter_columns:
+                if col in df.columns and df[col].dtype == 'object':
+                    conditions.append(df[col].str.strip() != '')
+            
+            if conditions:
+                # Combine all conditions with &
+                combined_condition = conditions[0]
+                for condition in conditions[1:]:
+                    combined_condition = combined_condition & condition
+                df = df[combined_condition]
         
         return df
 

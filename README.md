@@ -27,12 +27,17 @@ Or install from source:
 ```bash
 git clone https://github.com/GCOrgName/nar_database.git
 cd nar_database
+
+# For SQLite database only
 pip install -e .
+
+# For Parquet export support (browser-queryable via DuckDB)
+pip install -e ".[parquet]"
 ```
 
 ## Quick Start
 
-### Initialize Database
+### Option 1: SQLite Database (High-Performance Queries)
 ```bash
 # Download data and create database in one command
 nar-db init
@@ -42,7 +47,19 @@ nar-db download    # Download and extract CSV files
 nar-db process     # Process CSVs and create database
 ```
 
-### Query the Database
+### Option 2: Parquet Export (Browser-Queryable via DuckDB)
+```bash
+# Install with Parquet support first
+pip install -e ".[parquet]"
+
+# Download, convert CSVs to Parquet, and clean up in one command
+nar-db init-parquet
+
+# Or use a local ZIP file
+nar-db init-parquet --local-zip path/to/nar_dataset.zip
+```
+
+### Query the SQLite Database
 ```bash
 # Search by postal code
 nar-db query --postal-code "K1A0A6"
@@ -97,7 +114,8 @@ nar_database/
 ## Requirements
 
 - Python 3.8+
-- Dependencies: requests, pandas, click, tqdm
+- **Core dependencies**: requests, pandas, click, tqdm
+- **Parquet support** (optional): pyarrow, fastparquet
 
 ## Development
 
@@ -135,12 +153,20 @@ MIT License - see [LICENSE](LICENSE) file for details.
 4. Ensure all tests pass
 5. Submit a pull request
 
+## Features Implemented
+
+- ✅ NAR download URL from Statistics Canada (auto-detected or manual version selection)
+- ✅ Automatic column mapping based on actual NAR CSV structure
+- ✅ SQLite database with optimized indexing for performance
+- ✅ Parquet export with province partitioning for browser queries
+- ✅ CLI with progress tracking and comprehensive error handling
+- ✅ Both local and remote data source support
+
 ## Roadmap
 
-- [ ] Find actual NAR download URL from Statistics Canada
-- [ ] Implement automatic column mapping based on actual CSV structure
 - [ ] Add geographic queries (radius search)
 - [ ] Add data validation and quality checks
 - [ ] Implement incremental updates
 - [ ] Add export functionality (GeoJSON, KML)
 - [ ] Create Jupyter notebook examples
+- [ ] Web interface for Parquet data querying
