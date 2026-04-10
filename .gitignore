@@ -65,13 +65,16 @@ venv.bak/
 
 # Data directories - Exclude temporary working files (root level only)
 /data/
+/test_data/
+
+# Database files - Never commit database files anywhere
+*.db
+*.sqlite
+*.sqlite3
 
 # Safety: Prevent accidental data file commits to docs/data/
 docs/data/*.csv
 docs/data/*.zip
-docs/data/*.db
-docs/data/*.sqlite
-docs/data/*.sqlite3
 
 # Temporary files
 temp/

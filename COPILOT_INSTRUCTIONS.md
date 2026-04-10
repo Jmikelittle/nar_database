@@ -1,103 +1,89 @@
-# NAR Database Implementation Instructions for GitHub Copilot
+# NAR Database - AI Agent Background
 
 ## Project Overview
-This project creates a Python package that downloads Statistics Canada's National Address Register (NAR) open dataset and converts it into a local SQLite database. The package handles ~1GB of data with 27 CSV files while keeping data out of version control.
+This document provides background information for AI agents working on the NAR Database project.
+
+The **NAR Database** project is a Python package that processes Statistics Canada's National Address Register (NAR) open dataset into queryable formats. The package offers two primary output options:
+
+1. **SQLite Database** - High-performance local database for SQL queries
+2. **Parquet Files** - Browser-queryable partitioned files via DuckDB-wasm
+
+The package handles ~1GB of compressed data containing **49 CSV files** (27 Address files + 22 Location files) while keeping data out of version control.
 
 ## Current Project Status
-✅ **Completed:**
-- Basic project structure created
-- Core module files implemented (downloader.py, processor.py, database.py, cli.py)
-- Configuration files ready (pyproject.toml, requirements.txt, setup.py)
-- Documentation and usage guides written
-- Git ignore configured to exclude data files
-- Test framework structure established
+✅ **Completed Features:**
+- Full project structure with Python packaging (pyproject.toml, setup.py, requirements.txt)
+- Data downloader with version detection and auto-latest functionality
+- CSV processor with automatic column mapping and province code translation
+- SQLite database creation with optimized indexing
+- Parquet exporter with province partitioning for browser queries
+- CLI interface with progress tracking and comprehensive commands
+- Documentation (README.md, SQLITE_SETUP.md, docs/PARQUET_SETUP.md)
+- Git configuration to exclude data files
+- Test framework structure
 
-⚠️ **Needs Implementation:**
-- Find actual Statistics Canada NAR download URL
-- Test and fix column mapping based on real CSV structure
-- Implement error handling improvements
-- Add data validation
-- Create working tests with mock data
+⚠️ **Known Limitations:**
+- Limited test coverage (needs expansion with real data scenarios)
+- Version auto-detection depends on Statistics Canada page structure
+- No incremental update mechanism (full re-download required)
+- No geographic/radius search capabilities
 
 ## Key Implementation Tasks for Copilot
 
-### 1. **COMPLETED: NAR Data Source Found ✅**
-**Statistics Canada NAR Dataset Information:**
+## Data Source Information
+
+**Statistics Canada NAR Dataset:**
 - **Homepage**: https://www150.statcan.gc.ca/n1/pub/46-26-0002/462600022022001-eng.htm
-- **Current Download URL**: https://www150.statcan.gc.ca/n1/pub/46-26-0002/2022001/202507.zip (July 2025)
+- **License**: Open Government License - Canada
 - **Base URL Pattern**: `https://www150.statcan.gc.ca/n1/pub/46-26-0002/2022001/{VERSION}.zip`
-- **Version Format**: YYYYMM (ISO 8601 format)
+- **Version Format**: YYYYMM (e.g., 202507 = July 2025)
+- **Dataset Size**: ~1GB compressed ZIP file
+- **Content**: 49 CSV files (27 Address files + 22 Location files)
 
-**Available Versions:**
-- July 2025: `202507.zip`
-- December 2024: `202412.zip`  
-- June 2024: `2024.zip` (different format)
-- 2023: `2023.zip`
-- 2022: `2022.zip`
+**Recent Versions:**
+- 202507 (July 2025) - Default in code as of last update
+- 202412 (December 2024)
+- Older: 2024.zip, 2023.zip, 2022.zip (different naming format)
 
-**Implementation Status:**
-- ✅ Updated `downloader.py` with actual URLs
-- ✅ Added version detection and auto-latest features
-- ✅ Added both hardcoded and smart version detection options
-- ✅ Updated CLI to support `--version` and `--auto-latest` flags
+**Note**: As of April 2026, newer versions may be available. The package supports:
+- Manual version selection: `--version "YYYYMM"`
+- Auto-detection: `--auto-latest` (scrapes homepage for latest version)
+- Default: Hardcoded to 202507 (may need update)
 
-**Usage Examples:**
-```bash
-# Use current default version (202507 - July 2025)
-nar-db download
+## Package Architecture
 
-# Download specific version
-nar-db download --version "202412"
+### Core Modules
 
-# Auto-detect and download latest version
-nar-db download --auto-latest
+**downloader.py** - Data acquisition
+- Downloads NAR ZIP files from Statistics Canada
+- Supports version selection (manual or auto-detect)
+- Handles extraction to `data/raw/extracted/`
+- Progress tracking with tqdm
 
-# Initialize with specific version
-nar-db init --version "202507"
-```
+**processor.py** - CSV processing
+- Automatic column mapping from NAR field names to standardized schema
+- Province code translation (numeric → alpha codes using DRSprovinces.json)
+- Streaming/chunked processing for memory efficiency
+- Handles both Address and Location CSV files
 
-### 2. **Column Mapping Customization**
-The `processor.py` contains generic column mappings that need customization:
-```python
-# In src/nar_database/processor.py, method standardize_column_names()
-# Lines ~60-100 contain placeholder mappings
-```
-**Task:** Once you have access to real NAR CSV files, update the column mapping logic to match the actual field names used in the Statistics Canada dataset.
+**database.py** - SQLite database management
+- Schema creation with optimized indexes
+- Bulk insert operations for performance
+- Query methods (by postal code, city/province)
+- Database statistics and metadata
 
-### 3. **Error Handling Improvements**
-**Task:** Add robust error handling for:
-- Network timeouts during download
-- Corrupted ZIP files
-- Invalid CSV formats
-- Database connection issues
-- Disk space constraints
+**parquet_exporter.py** - Parquet file generation
+- Streaming CSV-to-Parquet conversion
+- Province-based partitioning (`province=XX/`)
+- Snappy compression for browser compatibility
+- Direct output to `docs/data/parquet/` for GitHub Pages
 
-### 4. **Import Fixes**
-Several imports show lint errors due to missing packages:
-```python
-# These will be resolved when dependencies are installed:
-from tqdm import tqdm
-import click
-import pandas as pd
-```
-**Task:** Ensure all required dependencies are properly installed when testing.
+**cli.py** - Command-line interface
+- Commands: init, download, process, query, stats, init-parquet
+- Progress indicators and user feedback
+- Support for both SQLite and Parquet workflows
 
-### 5. **Testing with Real Data**
-**Task:** 
-- Download actual NAR dataset for testing
-- Validate CSV structure matches expectations
-- Test end-to-end workflow: download → process → query
-- Verify performance with large dataset
-
-### 6. **CLI Enhancement**
-Current CLI in `src/nar_database/cli.py` has basic functionality.
-**Task:** Add features like:
-- Progress indicators for long-running operations
-- Verbose/quiet modes
-- Configuration file support
-- Data validation reports
-
-## Directory Structure Reference
+## Directory Structure
 ```
 nar_database/
 ├── src/nar_database/          # Main package code
@@ -105,15 +91,24 @@ nar_database/
 │   ├── downloader.py         # Download & extract NAR data
 │   ├── processor.py          # CSV processing & cleaning
 │   ├── database.py           # SQLite database management
-│   └── cli.py               # Command-line interface
-├── tests/                    # Unit tests
-├── docs/                     # Documentation
-├── data/                     # Local data (git-ignored)
-├── pyproject.toml           # Modern Python packaging
-├── setup.py                 # Backward compatibility
-├── requirements.txt         # Dependencies
-├── .gitignore              # Excludes data files
-└── README.md               # Project documentation
+│   ├── parquet_exporter.py   # Parquet file generation
+│   ├── cli.py                # Command-line interface
+│   └── DRSprovinces.json     # Province code mapping (numeric → alpha)
+├── tests/                     # Unit tests
+├── docs/                      # Documentation & GitHub Pages
+│   ├── PARQUET_SETUP.md      # Instructions for Parquet workflow
+│   └── data/parquet/         # Published Parquet files (git-tracked)
+├── data/                      # Local working data (git-ignored)
+│   ├── raw/                  # Downloaded ZIPs and extracted CSVs
+│   ├── processed/            # Intermediate processed files
+│   └── database/             # Generated SQLite databases
+├── SQLITE_SETUP.md           # Instructions for SQLite workflow
+├── COPILOT_INSTRUCTIONS.md   # This file - AI agent background
+├── README.md                 # Project overview & quick start
+├── pyproject.toml            # Modern Python packaging
+├── setup.py                  # Backward compatibility
+├── requirements.txt          # Dependencies
+└── .gitignore                # Excludes data/ directory
 ```
 
 ## Development Workflow
@@ -155,49 +150,62 @@ mypy src/
 - **Testing** - Unit tests for all major components
 - **Documentation** - Clear docstrings and usage examples
 
-## Next Steps Priority
+## Common AI Agent Tasks
 
-1. **MEDIUM PRIORITY:** Test with real data to validate CSV structure assumptions
-2. **MEDIUM PRIORITY:** Fix CLI import/syntax errors (click, pathlib dependencies)
-3. **MEDIUM PRIORITY:** Improve error handling and user feedback  
-4. **MEDIUM PRIORITY:** Add comprehensive tests
-5. **LOW PRIORITY:** Performance optimizations and advanced features
+### Understanding the Data Flow
+1. **Download**: ZIP from Statistics Canada → `data/raw/`
+2. **Extract**: ZIP → CSV files in `data/raw/extracted/Addresses/` and `data/raw/extracted/Locations/`
+3. **Process**:
+   - **SQLite path**: CSVs → SQLite database in `data/database/`
+   - **Parquet path**: CSVs → Partitioned Parquet in `docs/data/parquet/`
+4. **Query**: SQLite via SQL or Parquet via DuckDB-wasm in browser
 
-## Version Strategy Recommendation
+### Debugging Tips
+- Check `DRSprovinces.json` for province code mappings
+- CSV files use numeric province codes (10, 11, 12, etc.)
+- The processor translates: 10→NL, 11→PE, 12→NS, 13→NB, 24→QC, 35→ON, etc.
+- Address files contain unit-level data; Location files contain building/site data
+- All temporary data goes to `data/` (git-ignored)
+- Only `docs/data/parquet/` is committed for GitHub Pages
 
-**For immediate use:** Use the hardcoded approach with version "202507" (July 2025) as it's the most recent.
+### Version Management
+- Default version hardcoded in code: "202507" (July 2025)
+- As of April 2026, this may be outdated - check for newer YYYYMM versions
+- Use `--auto-latest` for automatic detection (scrapes Statistics Canada page)
+- Manual selection: `--version "YYYYMM"`
 
-**For future releases:** The auto-detection feature can scrape the homepage to find newer versions, but it's more complex and could break if the webpage changes.
+## User Workflows
 
-**Both approaches are implemented:**
-- Default: Uses hardcoded "202507" 
-- Option 1: `--version "YYYYMM"` for specific versions
-- Option 2: `--auto-latest` for automatic detection
-
-## Package Distribution
-Once implemented and tested:
+### SQLite Workflow (Local High-Performance Queries)
 ```bash
-# Build package
-python -m build
-
-# Upload to PyPI (when ready)
-twine upload dist/*
-```
-
-## Integration with GitHub
-The project is already set up in the `nar_database` repository. All code changes should be committed to version control, but data files will be excluded by `.gitignore`.
-
-## Expected Usage Flow
-```bash
-# User installs package
 pip install nar-database
-
-# User initializes database
-nar-db init  # Downloads ~1GB, processes 27 CSVs, creates SQLite DB
-
-# User queries data
-nar-db query --postal-code "K1A0A6"
-nar-db query --city "Ottawa" --province "ON"
+nar-db init                          # Download + process + create DB
+nar-db query --postal-code "K1A0A6"  # Query the database
+nar-db stats                         # View statistics
 ```
+See [SQLITE_SETUP.md](SQLITE_SETUP.md) for detailed instructions.
 
-This structure provides a solid foundation for creating a professional-quality Python package for Canadian address data processing.
+### Parquet Workflow (Browser-Queryable via GitHub Pages)
+```bash
+pip install nar-database[parquet]
+nar-db init-parquet --auto-latest    # Download + convert to Parquet
+git add docs/data/parquet/
+git commit -m "Update NAR parquet data"
+git push                             # Publish to GitHub Pages
+```
+See [docs/PARQUET_SETUP.md](docs/PARQUET_SETUP.md) for detailed instructions.
+
+## Documentation Structure
+
+- **README.md** - High-level project overview, installation, and quick start
+- **COPILOT_INSTRUCTIONS.md** (this file) - AI agent background and context
+- **SQLITE_SETUP.md** - Detailed SQLite database creation instructions
+- **docs/PARQUET_SETUP.md** - Detailed Parquet export instructions
+- **docs/data_dictionary.md** - Field definitions and data schema
+- **docs/usage.md** - Detailed API reference and usage examples
+
+## Repository Information
+- **Owner**: Jmikelittle
+- **Repo**: nar_database 
+- **GitHub Pages**: Hosts Parquet files for DuckDB-wasm querying
+- **License**: MIT

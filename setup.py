@@ -13,8 +13,6 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 setup(
     name="nar-database",
     version="0.1.0",
-    author="Your Name",
-    author_email="your.email@example.com",
     description="Download and process Statistics Canada's National Address Register into a local SQLite database",
     long_description=long_description,
     long_description_content_type="text/markdown",

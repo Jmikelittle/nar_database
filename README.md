@@ -1,82 +1,97 @@
 # NAR Database
 
-A Python package to download and process Statistics Canada's National Address Register (NAR) open dataset into a local SQLite database.
+A Python package to download and process Statistics Canada's National Address Register (NAR) open dataset into queryable formats.
 
 ## Overview
 
-The National Address Register is Canada's authoritative source of civic addresses. This package provides tools to:
+The **National Address Register** is Canada's authoritative source of civic addresses. This package provides tools to transform the NAR dataset (~1 GB ZIP with 49 CSV files) into two powerful query formats:
 
-- Download the latest NAR dataset (1GB+ ZIP file with 49 CSV files)
-- Process and clean the address data (Address files contain unit-level data)
-- Create and populate a local SQLite database with optimized performance
-- Query addresses by postal code, city/province, or street name
+### 🗄️ **SQLite Database** - High-Performance Local Queries
+- Fast SQL-based searches with optimized indexes
+- Offline access after initial download
+- Perfect for data analysis, integration, and batch processing
+- **[→ Full SQLite Setup Guide](SQLITE_SETUP.md)**
 
-## Documentation
+### 📦 **Parquet Files** - Browser-Queryable via DuckDB
+- Province-partitioned files hosted on GitHub Pages
+- Query directly in the browser with DuckDB-wasm
+- No installation required for end users
+- **[→ Full Parquet Setup Guide](docs/PARQUET_SETUP.md)**
 
-- **[Data Dictionary](docs/data_dictionary.md)** - Complete field definitions and mappings
-- **[Usage Guide](docs/usage.md)** - Detailed usage examples and API reference
+## 📚 Documentation
 
-## Installation
+| Document | Description |
+|----------|-------------|
+| **[SQLite Setup Guide](SQLITE_SETUP.md)** | Create local database for SQL queries |
+| **[Parquet Setup Guide](docs/PARQUET_SETUP.md)** | Export to browser-queryable format |
+| [Data Dictionary](docs/data_dictionary.md) | Complete field definitions and mappings |
+| [Usage Guide](docs/usage.md) | Detailed API reference and examples |
+
+## 🔗 Links
+
+- **GitHub Repository**: https://github.com/Jmikelittle/nar_database
+- **Data Source**: [Statistics Canada NAR](https://www150.statcan.gc.ca/n1/pub/46-26-0002/462600022022001-eng.htm)
+- **License**: MIT (Data: Open Government License - Canada)
+
+## 🚀 Quick Start
+
+### Installation
 
 ```bash
+# Install from PyPI (when published)
 pip install nar-database
-```
 
-Or install from source:
-
-```bash
-git clone https://github.com/GCOrgName/nar_database.git
+# Or install from source
+git clone https://github.com/Jmikelittle/nar_database.git
 cd nar_database
-
-# For SQLite database only
 pip install -e .
-
-# For Parquet export support (browser-queryable via DuckDB)
-pip install -e ".[parquet]"
 ```
 
-## Quick Start
+### Choose Your Workflow
 
-### Option 1: SQLite Database (High-Performance Queries)
+#### Option 1: SQLite Database (Recommended for Local Use)
+
+Create a high-performance local database:
+
 ```bash
-# Download data and create database in one command
+# One command to download, process, and create database
 nar-db init
 
-# Or step by step:
-nar-db download    # Download and extract CSV files
-nar-db process     # Process CSVs and create database
-```
-
-### Option 2: Parquet Export (Browser-Queryable via DuckDB)
-```bash
-# Install with Parquet support first
-pip install -e ".[parquet]"
-
-# Download, convert CSVs to Parquet, and clean up in one command
-nar-db init-parquet
-
-# Or use a local ZIP file
-nar-db init-parquet --local-zip path/to/nar_dataset.zip
-```
-
-### Query the SQLite Database
-```bash
-# Search by postal code
+# Query the database
 nar-db query --postal-code "K1A0A6"
-
-# Search by city and province
 nar-db query --city "Ottawa" --province "ON" --limit 5
-
-# Show database statistics
 nar-db stats
 ```
 
-## Python API
+**[→ See complete SQLite setup guide](SQLITE_SETUP.md)**
+
+#### Option 2: Parquet Files (Recommended for Public Access)
+
+Create browser-queryable partitioned files:
+
+```bash
+# Install with Parquet support
+pip install -e ".[parquet]"
+
+# Download and convert to Parquet format
+nar-db init-parquet --auto-latest
+
+# Publish to GitHub Pages
+git add docs/data/parquet/
+git commit -m "Update NAR parquet data"
+git push
+```
+
+**[→ See complete Parquet setup guide](docs/PARQUET_SETUP.md)**
+
+## 🐍 Python API
+
+Use the package programmatically:
 
 ```python
 from nar_database import NARDatabase
 
-# Initialize
+# Initialize database
 db = NARDatabase()
 
 # Query addresses
@@ -88,7 +103,9 @@ stats = db.get_stats()
 print(f"Total addresses: {stats['total_addresses']:,}")
 ```
 
-## Project Structure
+**[→ See full API documentation](docs/usage.md)**
+
+## 📁 Project Structure
 
 ```
 nar_database/
@@ -96,35 +113,46 @@ nar_database/
 │   ├── downloader.py          # Data download and extraction
 │   ├── processor.py           # CSV processing and cleaning
 │   ├── database.py            # SQLite database management
+│   ├── parquet_exporter.py    # Parquet file generation
 │   └── cli.py                 # Command-line interface
-├── tests/                     # Unit tests
-├── data/                      # Local data (git-ignored)
-│   ├── raw/                   # Downloaded ZIP and CSVs
-│   └── database/              # SQLite database
-└── docs/                      # Documentation
+├── docs/                      # Documentation
+│   ├── PARQUET_SETUP.md       # Parquet export guide
+│   └── data/parquet/          # Published Parquet files (git-tracked)
+├── data/                      # Local working data (git-ignored)
+│   ├── raw/                   # Downloaded ZIPs and CSVs
+│   └── database/              # SQLite database files
+├── SQLITE_SETUP.md            # SQLite setup guide
+├── COPILOT_INSTRUCTIONS.md    # AI agent background
+└── README.md                  # This file
 ```
 
-## Data Management
+## 💾 Data Management
 
-- All data files are excluded from git (see `.gitignore`)
-- Users download data locally using this package
-- Database files are created in `./data/database/` by default
-- Raw CSV files are stored in `./data/raw/` by default
+- **Dataset**: 49 CSV files (27 Address + 22 Location files)
+- **Size**: ~1 GB compressed, ~3 GB extracted
+- **Git Strategy**: All data files in `data/` are excluded via `.gitignore`
+- **User Downloads**: Each user downloads their own copy locally
+- **Published Data**: Only `docs/data/parquet/` is committed (for GitHub Pages)
 
-## Requirements
+### Default File Locations
+- SQLite database: `./data/database/nar.db`
+- Raw CSVs: `./data/raw/extracted/`
+- Parquet files: `./docs/data/parquet/province=XX/`
 
-- Python 3.8+
+## ⚙️ Requirements
+
+- **Python**: 3.8 or higher
 - **Core dependencies**: requests, pandas, click, tqdm
-- **Parquet support** (optional): pyarrow, fastparquet
+- **Optional dependencies** (for Parquet): pyarrow, fastparquet
 
-## Development
+## 🛠️ Development
 
 ```bash
 # Clone repository
-git clone https://github.com/GCOrgName/nar_database.git
+git clone https://github.com/Jmikelittle/nar_database.git
 cd nar_database
 
-# Install in development mode
+# Install with development dependencies
 pip install -e .[dev]
 
 # Run tests
@@ -134,39 +162,53 @@ pytest
 black src/ tests/
 ```
 
-## Data Source
+## 📄 Data Source
 
-- **Source**: Statistics Canada Open Data Portal
+- **Provider**: Statistics Canada
 - **Dataset**: National Address Register (NAR)
+- **URL**: https://www150.statcan.gc.ca/n1/pub/46-26-0002/462600022022001-eng.htm
 - **License**: Open Government License - Canada
-- **Format**: ZIP file containing 27 CSV files (~1GB compressed)
+- **Format**: ZIP file containing 49 CSV files (~1 GB compressed)
+- **Update Frequency**: Quarterly (check Statistics Canada for latest version)
 
-## License
+## 📜 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
 
-## Contributing
+The NAR data is provided by Statistics Canada under the Open Government License - Canada.
+
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
+4. Ensure all tests pass (`pytest`)
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
-## Features Implemented
+## ✨ Features
 
-- ✅ NAR download URL from Statistics Canada (auto-detected or manual version selection)
-- ✅ Automatic column mapping based on actual NAR CSV structure
-- ✅ SQLite database with optimized indexing for performance
-- ✅ Parquet export with province partitioning for browser queries
-- ✅ CLI with progress tracking and comprehensive error handling
-- ✅ Both local and remote data source support
+- ✅ Automatic download from Statistics Canada (version detection)
+- ✅ SQLite database with optimized indexing
+- ✅ Parquet export with province partitioning
+- ✅ CLI with progress tracking and comprehensive commands
+- ✅ Python API for programmatic access
+- ✅ Automatic column mapping and data cleaning
+- ✅ Province code translation (numeric → alpha)
+- ✅ Support for both local and remote data sources
 
-## Roadmap
+## 🗺️ Roadmap
 
-- [ ] Add geographic queries (radius search)
-- [ ] Add data validation and quality checks
-- [ ] Implement incremental updates
-- [ ] Add export functionality (GeoJSON, KML)
-- [ ] Create Jupyter notebook examples
+- [ ] Geographic/radius search capabilities
+- [ ] Data validation and quality reporting
+- [ ] Incremental updates (delta downloads)
+- [ ] Export functionality (GeoJSON, KML)
+- [ ] Jupyter notebook examples
 - [ ] Web interface for Parquet data querying
+- [ ] Performance benchmarks and optimization
+
+---
+
+**Questions or Issues?**  
+Open an issue at https://github.com/Jmikelittle/nar_database/issues
