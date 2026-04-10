@@ -94,6 +94,12 @@ The `data/` directory contains temporary working files (CSVs, ZIPs) and is safel
 rm -rf data/  # Safe to delete; all files are in .gitignore
 ```
 
+### Querying Parquet Files
+
+The Parquet files are designed to be queried in the browser via DuckDB-wasm. If you need to query the data programmatically with Python, consider using the SQLite workflow instead. See:
+- **[SQLite Setup Guide](../SQLITE_SETUP.md)** for creating a queryable local database
+- **[Usage Guide](usage.md)** for complete Python API documentation
+
 ---
 
 ## Step 5 – Commit and push

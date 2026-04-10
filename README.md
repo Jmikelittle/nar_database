@@ -10,7 +10,7 @@ The **National Address Register** is Canada's authoritative source of civic addr
 - Fast SQL-based searches with optimized indexes
 - Offline access after initial download
 - Perfect for data analysis, integration, and batch processing
-- **[→ Full SQLite Setup Guide](SQLITE_SETUP.md)**
+- **[→ Full SQLite Setup Guide](docs/SQLITE_SETUP.md)**
 
 ### 📦 **Parquet Files** - Browser-Queryable via DuckDB
 - Province-partitioned files hosted on GitHub Pages
@@ -22,7 +22,7 @@ The **National Address Register** is Canada's authoritative source of civic addr
 
 | Document | Description |
 |----------|-------------|
-| **[SQLite Setup Guide](SQLITE_SETUP.md)** | Create local database for SQL queries |
+| **[SQLite Setup Guide](docs/SQLITE_SETUP.md)** | Create local database for SQL queries |
 | **[Parquet Setup Guide](docs/PARQUET_SETUP.md)** | Export to browser-queryable format |
 | [Data Dictionary](docs/data_dictionary.md) | Complete field definitions and mappings |
 | [Usage Guide](docs/usage.md) | Detailed API reference and examples |

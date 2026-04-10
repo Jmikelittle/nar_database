@@ -9,7 +9,7 @@ pip install nar-database
 
 ### From Source
 ```bash
-git clone https://github.com/GCOrgName/nar_database.git
+git clone https://github.com/Jmikelittle/nar_database.git
 cd nar_database
 pip install -e .
 ```

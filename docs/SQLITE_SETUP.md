@@ -150,6 +150,8 @@ cursor = conn.execute("SELECT * FROM addresses WHERE province = 'ON' LIMIT 5")
 results = cursor.fetchall()
 ```
 
+**For more advanced Python API usage** (error handling, batch processing, custom queries with pandas), see [usage.md](usage.md).
+
 ---
 
 ## Database Schema
@@ -308,6 +310,8 @@ sqlite3 data/database/nar.db <<EOF
 SELECT * FROM addresses;
 EOF
 ```
+
+**For complete Python API documentation**, including error handling, performance optimization, and advanced query patterns, see [usage.md](usage.md).
 
 ---
 

@@ -328,15 +328,6 @@ def init_fast(local_zip: Path, sample_size: int, max_workers: int):
     if sample_size:
         click.echo(f"🧪 Sample mode: Processing {sample_size:,} records per file")
     
-    # Import optimized processor
-    try:
-        from .processor_optimized import NARProcessorOptimized
-        from .database import NARDatabase
-        from .downloader import NARDownloader
-    except ImportError as e:
-        click.echo(f"❌ Error importing modules: {e}")
-        return
-    
     try:
         # Step 1: Download/Extract
         step1_start = datetime.now()
@@ -356,10 +347,10 @@ def init_fast(local_zip: Path, sample_size: int, max_workers: int):
         click.echo(f"✅ Downloaded {len(csv_files)} CSV files (took {step1_duration})")
         click.echo(f"📦 Version: {version}")
         
-        # Step 2: Process with optimizations
+        # Step 2: Process with high-performance settings
         step2_start = datetime.now()
-        click.echo(f"\\n2. Processing data (OPTIMIZED)... ({step2_start.strftime('%H:%M:%S')})")
-        processor = NARProcessorOptimized()
+        click.echo(f"\\n2. Processing data (FAST MODE)... ({step2_start.strftime('%H:%M:%S')})")
+        processor = NARProcessor()
         database = NARDatabase()
         
         # Create database schema
@@ -368,8 +359,8 @@ def init_fast(local_zip: Path, sample_size: int, max_workers: int):
         total_processed = 0
         chunk_count = 0
         
-        # Process with I/O-optimized settings (your system handles large batches well)
-        chunk_size = 75000  # Optimal for your I/O performance
+        # Process with larger chunks for better performance
+        chunk_size = 75000  # Larger chunks for high-performance I/O
         
         for chunk in processor.process_csv_parallel(
             csv_files, 
